@@ -42,6 +42,13 @@ h1, h2, h3, h4 { font-family: 'Oswald', 'Montserrat', sans-serif; font-weight: 7
   padding: 18px 16px; display: flex; flex-direction: column; gap: 16px;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
+.ge-sidebar { transition: width .25s ease, flex-basis .25s ease, padding .22s ease, opacity .2s ease; }
+@media (min-width: 981px) {
+  .ge-app.ge-sidebar-collapsed .ge-sidebar {
+    width: 0; flex-basis: 0; min-width: 0; padding-left: 0; padding-right: 0;
+    opacity: 0; overflow: hidden; border-right: none; pointer-events: none;
+  }
+}
 .ge-sb-logo { background: rgba(255,255,255,.04); border: 1px solid rgba(245,184,0,.28); border-radius: 12px; padding: 8px 10px; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
 .ge-sb-logo img { width: 100%; max-width: 176px; height: auto; display: inline-block; }
 
@@ -90,7 +97,7 @@ h1, h2, h3, h4 { font-family: 'Oswald', 'Montserrat', sans-serif; font-weight: 7
 .ge-mast-strap { margin-top: 8px; color: var(--ge-gold); font-family: 'Oswald', sans-serif; font-weight: 800; letter-spacing: 0.18em; font-size: clamp(14px, 1.6vw, 20px); }
 .ge-mast-strap span { color: var(--ge-gold-soft); }
 .ge-mast-sub { color: #cfe0d6; font-size: clamp(13px, 1.2vw, 16px); margin-top: 4px; font-weight: 600; }
-.ge-burger { display: none; position: absolute; left: 14px; top: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--ge-border); color: var(--ge-gold); border-radius: 8px; font-size: 18px; padding: 5px 12px; cursor: pointer; }
+.ge-burger { display: block; position: absolute; left: 14px; top: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--ge-border); color: var(--ge-gold); border-radius: 8px; font-size: 18px; padding: 5px 12px; cursor: pointer; }
 
 /* --- Bandeau défilant ---------------------------------------------- */
 .ge-marquee { background: linear-gradient(90deg, rgba(245,184,0,.15), rgba(245,184,0,.05)); border-bottom: 1px solid rgba(245,184,0,.3); overflow: hidden; white-space: nowrap; }

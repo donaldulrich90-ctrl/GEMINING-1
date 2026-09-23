@@ -68,7 +68,7 @@
 
   <div class="ge-main">
     <header class="ge-masthead">
-      <button type="button" class="ge-burger" onclick="geToggleSidebar()" aria-label="Menu">☰</button>
+      <button type="button" class="ge-burger" onclick="geToggleSidebar()" aria-label="Afficher/masquer le menu" title="Afficher/masquer le menu">☰</button>
       <div class="ge-mast-center">
         <img class="ge-mast-logo" src="{% static 'img/good_engineers_logo.png' %}" alt="GOOD ENGINEERS — Services miniers &amp; ingénierie">
         <div class="ge-mast-strap"><span>DISCIPLINE</span> • <span>RIGUEUR</span> • <span>PERFORMANCE</span></div>
@@ -147,8 +147,15 @@
     if (lb) lb.textContent = light ? 'Mode Jour' : 'Mode Nuit';
   }
   function geToggleSidebar() {
-    document.getElementById('ge-app').classList.toggle('ge-sidebar-open');
+    var app = document.getElementById('ge-app');
+    if (window.matchMedia('(max-width: 980px)').matches) {
+      app.classList.toggle('ge-sidebar-open');
+    } else {
+      var collapsed = app.classList.toggle('ge-sidebar-collapsed');
+      try { localStorage.setItem('ge-sidebar-collapsed', collapsed ? '1' : '0'); } catch (e) {}
+    }
   }
+  try { if (localStorage.getItem('ge-sidebar-collapsed') === '1') document.getElementById('ge-app').classList.add('ge-sidebar-collapsed'); } catch (e) {}
   window.GE_RATES = {{ ge_rates_all_json }};
   var GE_NODEC = { XOF:1, XAF:1, CFA:1, GNF:1, JPY:1, KRW:1, SLL:1 };
   function geConvert() {
