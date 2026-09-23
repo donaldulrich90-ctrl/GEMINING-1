@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Maintenance — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🔧 Maintenance — Expert atelier</h1>
+  <p>Flotte, santé du parc, planification, pannes et historique</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="dashboard-kpi {% if nb_panne %}kpi-border-danger{% else %}kpi-border-success{% endif %}"><div class="kpi-lab">🔴 En panne</div><div class="kpi-val">{{ nb_panne }}</div><div class="kpi-sub">{% if nb_panne %}Intervention requise{% else %}Parc opérationnel{% endif %}</div></div>
+  <div class="dashboard-kpi {% if nb_scheduled %}kpi-border-warning{% else %}kpi-border-success{% endif %}"><div class="kpi-lab">🔔 Maintenances planifiées</div><div class="kpi-val">{{ nb_scheduled }}</div><div class="kpi-sub">À venir</div></div>
+  <div class="dashboard-kpi {% if nb_due %}kpi-border-warning{% else %}kpi-border-success{% endif %}"><div class="kpi-lab">⚙️ PM dues (H-mètre)</div><div class="kpi-val">{{ nb_due }}</div><div class="kpi-sub">Seuil H-mètre atteint</div></div>
+</div>
+
+<div class="subtab-group" data-sg="mnt">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('mnt',0)">🚛 Gestion flotte</button>
+    <button class="subtab-btn" onclick="geSubtab('mnt',1)">🩺 Santé du parc</button>
+    {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('mnt',2)">🛠️ Actions</button>{% endif %}
+    <button class="subtab-btn" onclick="geSubtab('mnt',{% if can_edit %}3{% else %}2{% endif %})">📜 Historique</button>
+  </div>
+  <div class="subtab-panels">
+
+    <!-- 0 · Gestion flotte -->
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>🚛 Liste de la flotte</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>ID</th><th>Modèle</th><th>Type</th><th>Opérateur</th><th>Capacité</th><th>Taux ($/h)</th><th>Statut</th></tr></thead>
+          <tbody>{% for h in health %}<tr><td><strong>{{ h.id }}</strong></td><td>{{ h.model }}</td><td>{{ h.type }}</td><td>{{ h.operator }}</td><td>{{ h.capacity }}</td><td>{{ h.hourly_rate }}</td><td>{% if h.statut == 'Active' %}<span class="badge badge-active">{{ h.statut }}</span>{% elif h.statut == 'Panne' %}<span class="badge badge-panne">{{ h.statut }}</span>{% else %}<span class="badge badge-other">{{ h.statut }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+      {% if can_edit %}
+      <div class="actions-grid">
+        <div class="content-card"><h3>➕ Ajouter une machine</h3>
+          <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="add_machine">
+            <label>Identifiant</label><input type="text" name="new_id" placeholder="Ex. DT-03" required>
+            <label>Modèle</label><input type="text" name="model" placeholder="Ex. 777E">
+            <label>Type</label><select name="mtype"><option>Dumper</option><option>Camion</option><option>Pelle</option><option>Excavatrice</option><option>Chargeuse</option><option>Bulldozer</option><option>Tractopelle</option><option>Grader</option><option>Citerne Eau</option><option>Citerne Gazoil</option></select>
+            <div style="display:flex;gap:8px;"><div style="flex:1;"><label>Capacité</label><input type="number" name="capacity" step="0.1" value="0"></div><div style="flex:1;"><label>Taux ($/h)</label><input type="number" name="hourly_rate" step="1" value="150"></div></div>
+            <button class="btn-primary">Ajouter l'engin</button>
+          </form>
+        </div>
+        <div class="content-card"><h3>🗑️ Supprimer une machine</h3>
+          <form method="post" class="ge-form" onsubmit="return confirm('Supprimer cet engin et ses données liées ?');">{% csrf_token %}<input type="hidden" name="action" value="remove_machine">
+            <label>Engin</label><select name="machine_id">{% for id in machine_ids %}<option>{{ id }}</option>{% endfor %}</select>
+            <button class="btn-danger">Supprimer l'engin</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- 1 · Santé du parc -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>🩺 Santé du parc</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>ID</th><th>Type</th><th>Statut</th><th>H-mètre</th><th>Heures avant PM</th><th>Prochaine maintenance</th></tr></thead>
+          <tbody>{% for h in health %}<tr><td><strong>{{ h.id }}</strong></td><td>{{ h.type }}</td><td>{% if h.statut == 'Active' %}<span class="badge badge-active">{{ h.statut }}</span>{% elif h.statut == 'Panne' %}<span class="badge badge-panne">{{ h.statut }}{% if h.breakdown_reason %} — {{ h.breakdown_reason }}{% endif %}</span>{% else %}<span class="badge badge-other">{{ h.statut }}</span>{% endif %}</td><td>{{ h.engine_hours }} h</td><td>{% if h.due %}<span class="status-breakdown">⚠️ DUE</span>{% else %}{{ h.h_restantes }} h{% endif %}</td><td>{% if h.next_maint %}{{ h.next_maint.date }}{% if h.next_maint.delta < 0 %} <span class="status-breakdown">(retard)</span>{% elif h.next_maint.delta <= 7 %} <span class="status-maintenance">(J-{{ h.next_maint.delta }})</span>{% endif %}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <!-- 2 · Actions -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>🛠️ Actions</h3>
+        <div class="actions-grid">
+          <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="plan"><strong>📅 Planifier une maintenance</strong><label>Engin</label><select name="machine_id">{% for id in machine_ids %}<option>{{ id }}</option>{% endfor %}</select><label>Date</label><input type="date" name="date" value="{{ today }}" required><label>Type</label><input type="text" name="type" value="Maintenance préventive"><button class="btn-primary">Planifier</button></form>
+          <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="breakdown"><strong>🔴 Signaler une panne</strong><label>Engin</label><select name="machine_id">{% for id in machine_ids %}<option>{{ id }}</option>{% endfor %}</select><label>Motif</label><input type="text" name="reason" placeholder="Ex: fuite hydraulique" required><button class="btn-danger">Signaler</button></form>
+          <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="repair"><strong>✅ Réparer / remettre en service</strong><label>Engin</label><select name="machine_id">{% for id in machine_ids %}<option>{{ id }}</option>{% endfor %}</select><label>Mécanicien / notes</label><input type="text" name="notes" placeholder="Notes (optionnel)"><button class="btn-primary">Réparer</button></form>
+          <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="pm"><strong>⚙️ Enregistrer une PM effectuée</strong><label>Engin</label><select name="machine_id">{% for id in machine_ids %}<option>{{ id }}</option>{% endfor %}</select><label>Type</label><input type="text" name="type" value="PM 250h"><button class="btn-primary">Enregistrer</button></form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 3 · Historique -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>📜 Historique des maintenances</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Date</th><th>Engin</th><th>Type</th><th>Mécanicien</th><th>H-mètre</th><th>Notes</th></tr></thead>
+          <tbody>{% for r in history %}<tr><td>{{ r.date_fmt }}</td><td><strong>{{ r.machine_id }}</strong></td><td>{{ r.maintenance_type }}</td><td>{{ r.mechanic_name|default:"—" }}</td><td>{{ r.engine_hours_at_maintenance|floatformat:0 }} h</td><td>{{ r.notes|default:"" }}</td></tr>{% empty %}<tr><td colspan="6" style="text-align:center;color:#A9BDB2;">Aucun historique</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

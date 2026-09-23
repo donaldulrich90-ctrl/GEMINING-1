@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facture {{ num }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef1ee; color: #1c2a24; margin: 0; padding: 24px; }
+    .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px 46px; box-shadow: 0 8px 30px rgba(0,0,0,.12); border-top: 6px solid #063D2B; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+    .brand h1 { margin: 0 0 4px; color: #063D2B; font-size: 24px; letter-spacing: .02em; }
+    .brand p { margin: 2px 0; font-size: 13px; color: #555; }
+    .inv-meta { text-align: right; }
+    .inv-meta .tag { display: inline-block; background: #F5B800; color: #10251c; font-weight: 800; padding: 6px 14px; border-radius: 6px; letter-spacing: .06em; }
+    .inv-meta p { margin: 6px 0 0; font-size: 13px; color: #444; }
+    .client { margin: 30px 0 10px; padding: 14px 16px; background: #f4f7f4; border-left: 4px solid #063D2B; border-radius: 4px; }
+    .client strong { color: #063D2B; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th { background: #063D2B; color: #fff; text-align: left; padding: 12px; font-size: 13px; }
+    td { padding: 12px; border-bottom: 1px solid #e2e8e4; font-size: 14px; }
+    .total-row td { font-size: 18px; font-weight: 800; color: #063D2B; border-top: 2px solid #063D2B; border-bottom: none; }
+    .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 24px; font-size: 13px; color: #555; }
+    .sign { text-align: right; min-width: 220px; }
+    .legend { margin-top: 22px; font-size: 12px; color: #777; font-style: italic; }
+    .actions { max-width: 800px; margin: 0 auto 14px; display: flex; gap: 10px; }
+    .actions button, .actions a { background: #063D2B; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; text-decoration: none; font-size: 14px; }
+    @media print { .actions { display: none; } body { background: #fff; padding: 0; } .sheet { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button onclick="window.print()">🖨️ Imprimer / PDF</button>
+    <a href="{% url 'tab' 'finance' %}">← Retour Finance</a>
+  </div>
+  <div class="sheet">
+    <div class="top">
+      <div class="brand">
+        {% if ci.logo_base64 %}<img src="data:{{ ci.logo_mime }};base64,{{ ci.logo_base64 }}" style="max-height:80px;max-width:200px;margin-bottom:8px;"><br>{% endif %}
+        <h1>{{ ci.company_name }}</h1>
+        {% if ci.address %}<p>{{ ci.address }}</p>{% endif %}
+        {% if ci.phone %}<p>Tél : {{ ci.phone }}</p>{% endif %}
+        {% if ci.email %}<p>{{ ci.email }}</p>{% endif %}
+        {% if ci.rccm %}<p>RCCM : {{ ci.rccm }}</p>{% endif %}
+        {% if ci.tax_id %}<p>IFU/Fiscal : {{ ci.tax_id }}</p>{% endif %}
+      </div>
+      <div class="inv-meta">
+        <span class="tag">FACTURE</span>
+        <p><strong>N° :</strong> {{ num }}</p>
+        <p><strong>Date :</strong> {{ today }}</p>
+        <p><strong>Période :</strong> {{ period }}</p>
+      </div>
+    </div>
+
+    <div class="client">
+      <strong>Client :</strong> {{ c.client_name|default:"—" }}<br>
+      <strong>Contrat :</strong> {{ c.name }} ({{ c.contract_id }})
+    </div>
+
+    <table>
+      <thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire</th><th style="text-align:right;">Montant (USD)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>{{ c.name }} — prestation {{ period }}</td>
+          <td>{{ qty }} {{ unit }}</td>
+          <td>{{ c.rate|floatformat:2 }} $ / {{ unit }}</td>
+          <td style="text-align:right;">{{ amount|floatformat:2 }} $</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="3">TOTAL À PAYER</td>
+          <td style="text-align:right;">{{ amount|floatformat:2 }} $</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="foot">
+      <div>{% if ci.bank_info %}<strong>Règlement :</strong><br>{{ ci.bank_info }}{% endif %}</div>
+      <div class="sign">
+        {% if ci.signatory_title %}<p>{{ ci.signatory_title }}</p>{% endif %}
+        {% if ci.signatory_name %}<p><strong>{{ ci.signatory_name }}</strong></p>{% endif %}
+      </div>
+    </div>
+    {% if ci.document_stamp_legend %}<p class="legend">{{ ci.document_stamp_legend }}</p>{% endif %}
+  </div>
+</body>
+</html>

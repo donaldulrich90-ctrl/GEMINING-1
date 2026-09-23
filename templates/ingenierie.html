@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Données Ingénierie — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>📐 Données ingénierie — Système hybride</h1>
+  <p>Saisie manuelle : heures (H-mètre), production, carburant par shift</p>
+</div>
+
+<div class="ge-report-links">
+  <a href="{% url 'rapport' %}">📄 Générer un rapport de production</a>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">{% if computed %}✅{% else %}⚠️{% endif %} {{ message }}{% if computed %}<span style="color:#A9BDB2;"> — {{ computed.hours }} h{% if computed.voyages %}, {{ computed.voyages }} voyage(s){% endif %}, {{ computed.production }} T, {{ computed.cycles_added }} cycles, cycle moy. {{ computed.avg_cycle_time }} min.</span>{% endif %}</div>{% endif %}
+
+<div class="subtab-group" data-sg="ing">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('ing',0)">📌 Synthèse du jour</button>
+    {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('ing',1)">➕ Saisie de données</button>{% endif %}
+    <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}2{% else %}1{% endif %})">🚜 État des engins</button>
+    <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}3{% else %}2{% endif %})">📜 Historique</button>
+  </div>
+  <div class="subtab-panels">
+
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>📌 Synthèse du jour</h3>
+        <form method="get" class="ge-form" style="flex-direction:row;align-items:end;gap:10px;margin-bottom:12px;"><div><label>Date du rapport</label><input type="date" name="date" value="{{ report_date }}"></div><button class="btn-primary" style="margin:0;">Afficher</button></form>
+        <div class="kpi-grid">
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">📝 Entrées</div><div class="kpi-val">{{ tot.n }}</div><div class="kpi-sub">Saisies du jour</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⏱️ Heures</div><div class="kpi-val">{{ tot.h|floatformat:1 }}</div><div class="kpi-sub">Σ heures saisies</div></div>
+          <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">⛏ Tonnes</div><div class="kpi-val">{{ tot.prod|floatformat:0 }}</div><div class="kpi-sub">{{ tot.tph }} T/h</div></div>
+          <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">⛽ Litres</div><div class="kpi-val">{{ tot.fuel|floatformat:0 }}</div><div class="kpi-sub">{{ tot.lpt }} L/t</div></div>
+        </div>
+        {% if by_shift %}<table class="ge-table" style="margin-top:12px;"><thead><tr><th>Shift</th><th>Entrées</th><th>Heures</th><th>Production (T)</th><th>Carburant (L)</th><th>Cycles</th></tr></thead><tbody>{% for s in by_shift %}<tr><td><strong>{{ s.shift }}</strong></td><td>{{ s.n }}</td><td>{{ s.h|floatformat:1 }}</td><td>{{ s.prod|floatformat:0 }}</td><td>{{ s.fuel|floatformat:0 }}</td><td>{{ s.cyc|floatformat:1 }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <div class="subtab-panel">
+      <div class="content-card"><h3>➕ Saisie de données</h3>
+        <form method="post" class="ge-form" style="max-width:900px;">{% csrf_token %}
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;"><div><label>Engin</label><select name="machine_id" required>{% for m in machines %}<option value="{{ m.id }}">{{ m.id }} — {{ m.model }} ({{ m.type }})</option>{% endfor %}</select></div><div><label>Shift</label><select name="shift"><option>Jour</option><option>Nuit</option></select></div><div><label>Date</label><input type="date" name="entry_date" value="{{ today }}"></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;"><div><label>H-mètre début</label><input type="number" name="h_debut" step="0.1" value="0"></div><div><label>H-mètre fin</label><input type="number" name="h_fin" step="0.1" value="0"></div><div><label>Carburant chargé (L)</label><input type="number" name="fuel" step="0.1" value="0"></div></div>
+
+          <div style="border:1px solid rgba(245,184,0,.25);border-radius:10px;padding:12px;margin:4px 0;">
+            <strong style="color:#F5B800;font-size:13px;">⛏ Tonnage — deux méthodes (renseignez l'une OU l'autre)</strong>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px;">
+              <div><label>Production (T) — pesée directe</label><input type="number" name="production" step="0.1" value="0"></div>
+              <div><label>Nombre de voyages</label><input type="number" name="voyages" step="1" value="0"></div>
+              <div><label>Tonnage / voyage (t)</label><input type="number" name="facteur" step="0.1" value="0" placeholder="défaut = capacité engin"></div>
+            </div>
+            <p style="color:#A9BDB2;font-size:12px;margin:6px 0 0;">Si vous entrez un <strong>nombre de voyages</strong>, le tonnage = voyages × tonnage/voyage (ou × capacité de l'engin si le facteur est laissé à 0). Sinon, entrez la <strong>production pesée</strong> directement.</p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label>Période de mise à jour</label><select name="period"><option value="Journalière">Journalière (compteurs du jour)</option><option value="Hebdomadaire">Hebdomadaire (+ semaine)</option><option value="Mensuelle">Mensuelle (+ mois/année)</option><option value="Toutes">Toutes (tous les compteurs)</option></select></div><div><label>Prix carburant (USD/L)</label><input type="number" name="fuel_price" step="0.01" value="1.5"></div></div>
+          <button class="btn-primary">✅ Enregistrer les données</button>
+          <p style="color:#A9BDB2;font-size:13px;">Heures = H-mètre fin − début. <strong>Période de mise à jour</strong> = à quels totaux la saisie s'ajoute (jour seul, ou aussi semaine / mois / année). La saisie met à jour l'engin et alimente Dashboard, Cycles et Finance.</p>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="subtab-panel">
+      <div class="content-card"><h3>🚜 État actuel des engins</h3>
+        <div style="overflow-x:auto;"><table class="ge-table"><thead><tr><th>ID</th><th>Modèle</th><th>Type</th><th>H-mètre</th><th>Production (T)</th><th>Conso. jour (L)</th></tr></thead><tbody>{% for m in machines %}<tr><td><strong>{{ m.id }}</strong></td><td>{{ m.model }}</td><td>{{ m.type }}</td><td>{{ m.engine_hours }}</td><td>{{ m.production }}</td><td>{{ m.cons_jour }}</td></tr>{% endfor %}</tbody></table></div>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card"><h3>📜 Historique des saisies</h3>
+        <div style="overflow-x:auto;"><table class="ge-table"><thead><tr><th>Date</th><th>Engin</th><th>Shift</th><th>Heures</th><th>Production (T)</th><th>Carburant (L)</th><th>Cycles</th><th>Par</th></tr></thead><tbody>{% for r in history %}<tr><td>{{ r.entry_date }}</td><td><strong>{{ r.machine_id }}</strong></td><td>{{ r.shift }}</td><td>{{ r.hours_worked|floatformat:1 }}</td><td>{{ r.production_tonnes|floatformat:0 }}</td><td>{{ r.fuel_consumed|floatformat:0 }}</td><td>{{ r.cycles_added|floatformat:1 }}</td><td>{{ r.entered_by }}</td></tr>{% empty %}<tr><td colspan="8" style="text-align:center;color:#A9BDB2;">Aucune saisie</td></tr>{% endfor %}</tbody></table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

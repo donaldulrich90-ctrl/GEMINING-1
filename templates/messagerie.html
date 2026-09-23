@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Messagerie — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>💬 Messagerie &amp; échanges</h1>
+  <p>Messages d'équipe, communiqués et annonces</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+{% if communiques %}
+<div class="content-card">
+  <h3>📢 Communiqués</h3>
+  {% for c in communiques %}
+  <div class="alert-box alert-warning" style="margin-bottom:10px;">
+    <div style="font-size:12px;color:#A9BDB2;">{{ c.from }} · {{ c.ts_fmt }}</div>
+    <div style="white-space:pre-wrap;margin-top:4px;">{{ c.body }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="actions-grid">
+  <div class="content-card">
+    <h3>✉️ Nouveau message</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="send">
+      <label>Destinataire</label>
+      <select name="dest"><option value="__team__">Salon équipe (tous)</option>{% for u in users %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
+      <label>Message</label><textarea name="body" placeholder="Votre texte…" required></textarea>
+      <button class="btn-primary">Envoyer</button>
+    </form>
+  </div>
+  {% if is_admin %}
+  <div class="content-card">
+    <h3>📢 Publier un communiqué</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="communique">
+      <label>Titre</label><input type="text" name="title" placeholder="(optionnel)">
+      <label>Texte</label><textarea name="body" placeholder="Visible par toute l'entreprise…" required></textarea>
+      <button class="btn-primary">Publier</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if is_admin %}
+<div class="content-card">
+  <h3>📣 Bandeau défilant (haut de page)</h3>
+  <form method="post" class="ge-form" style="max-width:720px;">
+    {% csrf_token %}<input type="hidden" name="action" value="banner">
+    <label>Texte de l'annonce (une ligne = une annonce)</label>
+    <textarea name="banner_text" placeholder="Ex. Réunion sécurité vendredi 8h • Nouvelle procédure de chargement…">{{ banner.text }}</textarea>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;text-transform:none;"><input type="checkbox" name="banner_active" {% if banner.active %}checked{% endif %} style="width:auto;min-height:auto;"> Afficher le bandeau</label>
+    <button class="btn-primary">Enregistrer le bandeau</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <h3>🧵 Fil récent</h3>
+  {% for m in thread %}
+  <div style="padding:10px 0;border-bottom:1px solid var(--ge-border);">
+    <div style="font-size:12px;color:#A9BDB2;"><strong style="color:#fff;">{{ m.from }}</strong> → {{ m.to_lbl }} · {{ m.ts_fmt }}</div>
+    <div style="white-space:pre-wrap;margin-top:3px;">{{ m.body }}</div>
+  </div>
+  {% empty %}
+  <p style="color:#A9BDB2;">Aucun message pour l'instant.</p>
+  {% endfor %}
+</div>
+{% endblock %}

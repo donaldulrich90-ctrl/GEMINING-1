@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Facture mensuelle — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+
+<div class="ge-print-bar">
+  <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,.04);padding:12px 14px;border-radius:10px;border:1px solid var(--ge-border);">
+    <div><label style="display:block;font-size:12px;color:var(--ge-muted);">Mois</label>
+      <input type="month" name="month" value="{{ month }}" style="padding:7px;border-radius:8px;border:1px solid var(--ge-border);background:rgba(4,35,26,.6);color:#fff;"></div>
+    <div><label style="display:block;font-size:12px;color:var(--ge-muted);">Client / Mine</label>
+      <select name="client" style="padding:8px;border-radius:8px;border:1px solid var(--ge-border);background:rgba(4,35,26,.6);color:#fff;">
+        <option value="">— Tous les clients —</option>
+        {% for cl in clients %}<option value="{{ cl }}"{% if cl == client_filter %} selected{% endif %}>{{ cl }}</option>{% endfor %}
+      </select></div>
+    <button type="submit">Générer</button>
+  </form>
+</div>
+<div class="ge-print-bar">
+  <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  <a class="secondary" href="{% url 'tab' 'finance' %}">← Retour Finance</a>
+</div>
+
+<div class="ge-doc">
+  <div class="ge-doc-head">
+    <div>
+      <div style="font-weight:800;color:#0a5c3f;font-size:18px;">{{ ci.company_name }}</div>
+      {% if ci.address %}<div style="font-size:12px;color:#555;">{{ ci.address }}</div>{% endif %}
+      {% if ci.phone %}<div style="font-size:12px;color:#555;">Tél : {{ ci.phone }}</div>{% endif %}
+      {% if ci.email %}<div style="font-size:12px;color:#555;">{{ ci.email }}</div>{% endif %}
+      {% if ci.rccm %}<div style="font-size:12px;color:#555;">RCCM : {{ ci.rccm }}{% if ci.tax_id %} — IFU : {{ ci.tax_id }}{% endif %}</div>{% endif %}
+    </div>
+    <div style="text-align:right;">
+      <h1 style="margin:0;">FACTURE</h1>
+      <div class="ge-doc-meta">
+        N° {{ num }}<br>
+        Mois : <b>{{ month_fr }}</b><br>
+        Date d'édition : {{ today }}
+      </div>
+    </div>
+  </div>
+
+  <div style="margin:6px 0 14px;font-size:14px;">
+    <b>Facturé à :</b> {{ client_filter|default:"Client(s) minier(s) — voir détail" }}
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Contrat</th><th>Client</th><th>Type</th><th>Quantité</th><th>Unité</th><th>Taux (USD)</th><th>Montant (USD)</th></tr>
+    </thead>
+    <tbody>
+      {% for l in lines %}
+      <tr>
+        <td>{{ l.name }}</td>
+        <td>{{ l.client }}</td>
+        <td>{{ l.type }}</td>
+        <td>{{ l.qty|floatformat:2 }}</td>
+        <td>{{ l.unit }}</td>
+        <td>{{ l.rate|floatformat:2 }}</td>
+        <td>{{ l.amount|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center;color:#777;">Aucun contrat actif pour cette sélection.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if lines %}
+    <tfoot>
+      <tr><td colspan="6">TOTAL À PAYER</td><td>{{ total|floatformat:2 }} USD</td></tr>
+    </tfoot>
+    {% endif %}
+  </table>
+
+  <div style="font-size:12px;color:#666;margin-top:8px;">
+    Montants calculés à partir des volumes/heures du mois enregistrés dans la plateforme.
+    {% if ci.bank_info %}<br><b>Règlement :</b> {{ ci.bank_info }}{% endif %}
+  </div>
+
+  <div class="ge-doc-sign">
+    {{ ci.signatory_title|default:"Le Directeur" }}<br>
+    <b>{{ ci.signatory_name|default:generated_by }}</b>
+    {% if ci.document_stamp_legend %}<br><span style="color:#777;font-size:12px;">{{ ci.document_stamp_legend }}</span>{% endif %}
+  </div>
+</div>
+
+{% if print %}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });</script>{% endif %}
+{% endblock %}

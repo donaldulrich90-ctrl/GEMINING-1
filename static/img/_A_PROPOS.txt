@@ -1,0 +1,4 @@
+Placer ici (repris de l'ancienne app, dossier assets/) :
+  - good_engineers_logo.png   (logo affiché sur la page de connexion)
+  - mining_login_hero.jpg      (photo de fond de la page de connexion)
+Le script de déploiement les copie automatiquement depuis ..\assets\.

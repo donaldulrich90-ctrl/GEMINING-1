@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GOOD ENGINEERS OS — Connexion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+  <div class="ge-login">
+    <div class="ge-login-hero"
+         style="background-image: linear-gradient(180deg, rgba(2,27,20,.28) 0%, rgba(2,20,17,.04) 38%, rgba(2,18,17,.78) 100%), url('{% static 'img/mining_login_hero.jpg' %}');">
+      <div class="ge-login-brand">
+        <img src="{% static 'img/good_engineers_logo.png' %}" alt="GOOD ENGINEERS — Services miniers et ingénierie">
+      </div>
+      <div class="ge-login-hero-copy">
+        <h1>Pilotez vos<br><span>opérations minières.</span></h1>
+        <p>Production, flotte et sécurité dans un seul espace.</p>
+        <div class="ge-login-features" aria-label="Fonctions principales">
+          <span><b></b>Production</span>
+          <span><b></b>Maintenance</span>
+          <span><b></b>Sécurité</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ge-login-form-panel">
+      <div class="ge-login-form-head">
+        <p class="ge-login-eyebrow">Espace client</p>
+        <h2>Bienvenue</h2>
+        <p>Connectez-vous à votre espace de travail.</p>
+      </div>
+
+      <form class="ge-login-form" method="post" action="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next }}{% endif %}">
+        {% csrf_token %}
+        {% if error %}<div class="ge-login-error">{{ error }}</div>{% endif %}
+        <label for="id_username">Identifiant</label>
+        <input id="id_username" name="username" type="text" autocomplete="username" autofocus required>
+        <label for="id_password">Mot de passe</label>
+        <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Se connecter</button>
+      </form>
+
+      <p class="ge-login-values">
+        <span>Discipline</span><i>•</i><span>Rigueur</span><i>•</i><span>Performance</span>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

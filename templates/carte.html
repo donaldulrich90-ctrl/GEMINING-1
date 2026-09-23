@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Carte — GOOD ENGINEERS OS{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🗺️ Carte de la flotte</h1>
+  <p>Positions GPS des engins en temps réel</p>
+</div>
+
+<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🚛 Engins localisés</div><div class="kpi-val">{{ nb }}</div><div class="kpi-sub">Sur le site</div></div>
+  <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">🟢 Actifs</div><div class="kpi-val">{{ nb_active }}</div><div class="kpi-sub">En service</div></div>
+  <div class="dashboard-kpi {% if nb_panne %}kpi-border-danger{% else %}kpi-border-muted{% endif %}"><div class="kpi-lab">🔴 En panne</div><div class="kpi-val">{{ nb_panne }}</div><div class="kpi-sub">Immobilisés</div></div>
+</div>
+
+<div class="content-card" style="margin-top:16px;">
+  <div id="map" style="width:100%;height:520px;border-radius:12px;overflow:hidden;background:#0b201a;"></div>
+  <div id="map-fallback" style="display:none;color:#A9BDB2;padding:10px;">La carte nécessite une connexion Internet (fonds de carte OpenStreetMap). La liste ci-dessous reste disponible hors-ligne.</div>
+</div>
+
+<div class="content-card">
+  <h3>📍 Coordonnées des engins</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr><th>ID</th><th>Type</th><th>Statut</th><th>Opérateur</th><th>Latitude</th><th>Longitude</th><th>Production (T)</th></tr></thead>
+      <tbody>
+        {% for m in machines %}
+        <tr>
+          <td><strong>{{ m.id }}</strong></td><td>{{ m.type }}</td>
+          <td>{% if m.statut == 'Active' %}<span class="badge badge-active">{{ m.statut }}</span>{% elif m.statut == 'Panne' %}<span class="badge badge-panne">{{ m.statut }}</span>{% else %}<span class="badge badge-other">{{ m.statut }}</span>{% endif %}</td>
+          <td>{{ m.operateur }}</td><td>{{ m.lat|floatformat:5 }}</td><td>{{ m.lon|floatformat:5 }}</td><td>{{ m.production }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block body_extra %}
+<script>
+(function () {
+  const machines = {{ machines_json }};
+  const center = {{ center }};
+  const COLORS = { 'Active': '#28A745', 'Panne': '#DC3545', 'Maintenance': '#FF6B00' };
+  if (typeof L === 'undefined') {
+    document.getElementById('map').style.display = 'none';
+    document.getElementById('map-fallback').style.display = 'block';
+    return;
+  }
+  try {
+    const map = L.map('map').setView([center.lat, center.lon], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    machines.forEach(m => {
+      const col = COLORS[m.statut] || '#A9BDB2';
+      L.circleMarker([m.lat, m.lon], { radius: 10, color: '#fff', weight: 2, fillColor: col, fillOpacity: 0.9 })
+        .addTo(map)
+        .bindPopup(`<b>${m.id}</b> — ${m.type}<br>Statut : ${m.statut}<br>Opérateur : ${m.operateur}<br>Production : ${m.production} T`);
+    });
+  } catch (e) {
+    document.getElementById('map').style.display = 'none';
+    document.getElementById('map-fallback').style.display = 'block';
+  }
+})();
+</script>
+{% endblock %}

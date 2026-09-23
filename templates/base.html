@@ -1,0 +1,275 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}GOOD ENGINEERS OS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <script>
+    // Thème mémorisé (avant rendu pour éviter le flash)
+    try { var _t = localStorage.getItem('ge-theme'); if (_t) document.documentElement.dataset.theme = _t; } catch (e) {}
+  </script>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+<div class="ge-app" id="ge-app">
+
+  <aside class="ge-sidebar" id="ge-sidebar">
+    <div class="ge-sb-logo">
+      <img src="{% static 'img/good_engineers_logo.png' %}" alt="GOOD ENGINEERS">
+    </div>
+    <div class="ge-sb-company">
+      <div class="ge-sb-eyebrow">Entreprise abonnée</div>
+      <div class="ge-sb-name">{{ ge_tenant_name }}</div>
+    </div>
+
+    <button type="button" class="ge-sb-theme" onclick="geToggleTheme()">
+      <span id="ge-theme-ic">🌙</span> <span id="ge-theme-label">Mode Nuit</span>
+    </button>
+
+    <div class="ge-sb-block">
+      <div class="ge-sb-h">🔄 Taux du jour (live)</div>
+      <div class="ge-sb-line">1 USD = <b>{{ ge_rates.CFA|floatformat:0 }} CFA</b></div>
+      <div class="ge-sb-line">1 USD = <b>{{ ge_rates.EUR|floatformat:2 }} EUR</b></div>
+    </div>
+    <div class="ge-sb-block">
+      <div class="ge-sb-h">🥇 Prix de l'or (live)</div>
+      <div class="ge-sb-line"><b>{{ ge_gold_oz_usd|floatformat:2 }} $</b> / once</div>
+      <div class="ge-sb-line"><b>{{ ge_gold_oz_cfa|floatformat:0 }} F</b> / once</div>
+    </div>
+
+    <div class="ge-sb-block">
+      <div class="ge-sb-h">💱 Convertisseur (live) — toutes devises</div>
+      <input type="number" id="conv-amt" value="1000" step="any" oninput="geConvert()" style="width:100%;background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:14px;margin-bottom:6px;">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+        <select id="conv-from" onchange="geConvert()" style="flex:1;min-width:0;background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:8px;color:#fff;padding:7px;font-size:12px;">
+          {% for o in ge_ccy_options %}<option value="{{ o.code }}"{% if o.code == 'CFA' %} selected{% endif %}>{{ o.label }}</option>{% endfor %}
+        </select>
+        <span style="color:var(--ge-gold);font-weight:800;">→</span>
+        <select id="conv-to" onchange="geConvert()" style="flex:1;min-width:0;background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:8px;color:#fff;padding:7px;font-size:12px;">
+          {% for o in ge_ccy_options %}<option value="{{ o.code }}"{% if o.code == 'USD' %} selected{% endif %}>{{ o.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="conv-res" style="color:var(--ge-gold);font-weight:800;font-size:16px;text-align:center;">—</div>
+    </div>
+
+    <div class="ge-sb-foot">
+      <div class="ge-sb-user">{{ ge_username }}</div>
+      <div class="ge-sb-role">{{ ge_role }}</div>
+      <form method="post" action="{% url 'logout' %}" style="margin:8px 0 0;">
+        {% csrf_token %}<button class="ge-logout" type="submit" style="width:100%;">🚪 Déconnexion</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="ge-main">
+    <header class="ge-masthead">
+      <button type="button" class="ge-burger" onclick="geToggleSidebar()" aria-label="Menu">☰</button>
+      <div class="ge-mast-center">
+        <img class="ge-mast-logo" src="{% static 'img/good_engineers_logo.png' %}" alt="GOOD ENGINEERS — Services miniers &amp; ingénierie">
+        <div class="ge-mast-strap"><span>DISCIPLINE</span> • <span>RIGUEUR</span> • <span>PERFORMANCE</span></div>
+        <div class="ge-mast-sub">Système de Gestion Minière &amp; Extraction d'Or</div>
+      </div>
+      <div class="ge-mast-actions">
+        <button type="button" class="ge-icon-btn" id="ge-voice-btn" onclick="geVoiceToggle()" title="Assistance vocale (notifications parlées)">🔊 <span id="ge-voice-lbl">Voix</span></button>
+        <button type="button" class="ge-icon-btn" id="ge-bell-btn" onclick="geBellOpen()" title="Notifications">🔔<span class="ge-badge" id="ge-bell-badge" style="display:none;">0</span></button>
+        <div id="ge-bell-panel" class="ge-bell-panel">
+          <div class="ge-bell-head">🔔 Notifications</div>
+          <div id="ge-bell-list" class="ge-bell-list"><div class="ge-bell-empty">Aucune alerte.</div></div>
+        </div>
+      </div>
+    </header>
+
+    {% if ge_marquee %}
+    <div class="ge-marquee"><div class="ge-marquee-track">
+      {% for a in ge_marquee %}<span>📢 {{ a }}</span>{% endfor %}
+      {% for a in ge_marquee %}<span>📢 {{ a }}</span>{% endfor %}
+    </div></div>
+    {% endif %}
+
+    {% if nav_tabs %}
+    <nav class="ge-nav">
+      {% for tab in nav_tabs %}
+        <a href="{% url 'tab' tab.slug %}" class="{% if tab.slug == current_slug %}active{% endif %}">{{ tab.label }}{% if tab.slug == 'messagerie' and ge_unread %} <span class="ge-nav-badge">{{ ge_unread }}</span>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+
+    <main class="ge-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Assistant flottant -->
+<button id="ge-bot-fab" onclick="geBotToggle()" title="Assistant GOOD ENGINEERS">💬</button>
+<div id="ge-bot" class="ge-bot">
+  <div class="ge-bot-head">
+    <span>🤖 Assistant GOOD ENGINEERS</span>
+    <button onclick="geBotToggle()" style="background:none;border:none;color:#10251c;font-size:18px;cursor:pointer;font-weight:800;">×</button>
+  </div>
+  <div class="ge-bot-msgs" id="ge-bot-msgs">
+    <div class="ge-bot-msg bot">Bonjour 👋 Posez-moi une question sur la plateforme (ex. « comment saisir le tonnage ? », « à quoi sert Finance ? »).</div>
+  </div>
+  <div class="ge-bot-input">
+    <input type="text" id="ge-bot-q" placeholder="Votre question…" onkeydown="if(event.key==='Enter')geBotAsk()">
+    <button onclick="geBotAsk()">➤</button>
+  </div>
+  {% if ge_is_general_admin %}
+  <div class="ge-bot-teach">
+    <button class="ge-bot-teach-toggle" onclick="document.getElementById('ge-bot-teach-form').classList.toggle('open')">🎓 Enseigner une réponse (admin)</button>
+    <div id="ge-bot-teach-form" class="ge-bot-teach-form">
+      <input type="text" id="ge-teach-q" placeholder="Question / mots-clés (ex. rapport journalier)">
+      <textarea id="ge-teach-a" placeholder="Réponse à donner…"></textarea>
+      <button onclick="geBotTeach()">Enregistrer</button>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  function geToggleTheme() {
+    var root = document.documentElement;
+    var isLight = root.dataset.theme === 'light';
+    root.dataset.theme = isLight ? 'dark' : 'light';
+    try { localStorage.setItem('ge-theme', root.dataset.theme); } catch (e) {}
+    geSyncTheme();
+  }
+  function geSyncTheme() {
+    var light = document.documentElement.dataset.theme === 'light';
+    var ic = document.getElementById('ge-theme-ic'), lb = document.getElementById('ge-theme-label');
+    if (ic) ic.textContent = light ? '☀️' : '🌙';
+    if (lb) lb.textContent = light ? 'Mode Jour' : 'Mode Nuit';
+  }
+  function geToggleSidebar() {
+    document.getElementById('ge-app').classList.toggle('ge-sidebar-open');
+  }
+  window.GE_RATES = {{ ge_rates_all_json }};
+  var GE_NODEC = { XOF:1, XAF:1, CFA:1, GNF:1, JPY:1, KRW:1, SLL:1 };
+  function geConvert() {
+    var amt = parseFloat(document.getElementById('conv-amt').value) || 0;
+    var from = document.getElementById('conv-from').value, to = document.getElementById('conv-to').value;
+    var usd = amt / (window.GE_RATES[from] || 1);
+    var res = usd * (window.GE_RATES[to] || 1);
+    var nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: GE_NODEC[to] ? 0 : 2 });
+    document.getElementById('conv-res').textContent = nf.format(res) + ' ' + to;
+  }
+  function geSubtab(group, idx) {
+    var g = document.querySelector('.subtab-group[data-sg="' + group + '"]');
+    if (!g) return;
+    g.querySelectorAll('.subtab-btn').forEach(function (b, i) { b.classList.toggle('active', i === idx); });
+    g.querySelectorAll('.subtab-panel').forEach(function (p, i) { p.classList.toggle('active', i === idx); });
+  }
+  geSyncTheme();
+  try { geConvert(); } catch (e) {}
+
+  // --- Assistant flottant ---
+  function geCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+  function geBotToggle() { document.getElementById('ge-bot').classList.toggle('open'); }
+  function geBotAdd(text, who) {
+    var box = document.getElementById('ge-bot-msgs');
+    var d = document.createElement('div');
+    d.className = 'ge-bot-msg ' + who;
+    d.textContent = text;
+    box.appendChild(d); box.scrollTop = box.scrollHeight;
+  }
+  function geBotAsk() {
+    var input = document.getElementById('ge-bot-q');
+    var q = input.value.trim(); if (!q) return;
+    geBotAdd(q, 'user'); input.value = '';
+    var body = new URLSearchParams({ q: q });
+    fetch('{% url "assistant_ask" %}', { method: 'POST', headers: { 'X-CSRFToken': geCsrf(), 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { geBotAdd(d.answer || '…', 'bot'); })
+      .catch(function () { geBotAdd("Erreur de connexion à l'assistant.", 'bot'); });
+  }
+  function geBotTeach() {
+    var q = document.getElementById('ge-teach-q').value.trim();
+    var a = document.getElementById('ge-teach-a').value.trim();
+    if (!q || !a) { geBotAdd('Question et réponse requises.', 'bot'); return; }
+    var body = new URLSearchParams({ q: q, a: a });
+    fetch('{% url "assistant_teach" %}', { method: 'POST', headers: { 'X-CSRFToken': geCsrf(), 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { geBotAdd(d.msg || 'OK', 'bot'); if (d.ok) { document.getElementById('ge-teach-q').value=''; document.getElementById('ge-teach-a').value=''; } })
+      .catch(function () { geBotAdd("Erreur lors de l'enregistrement.", 'bot'); });
+  }
+
+  // --- Notifications (cloche) + assistance vocale ---
+  var GE_VOICE = false;
+  try { GE_VOICE = localStorage.getItem('ge-voice') === '1'; } catch (e) {}
+  var GE_SPOKEN = {};   // textes déjà annoncés (évite les répétitions)
+  var GE_NOTIFS = [];
+
+  function geVoiceSync() {
+    var lbl = document.getElementById('ge-voice-lbl');
+    var btn = document.getElementById('ge-voice-btn');
+    if (lbl) lbl.textContent = GE_VOICE ? 'Voix ON' : 'Voix';
+    if (btn) btn.classList.toggle('on', GE_VOICE);
+  }
+  function geVoiceToggle() {
+    GE_VOICE = !GE_VOICE;
+    try { localStorage.setItem('ge-voice', GE_VOICE ? '1' : '0'); } catch (e) {}
+    geVoiceSync();
+    if (GE_VOICE) {
+      geSpeak("Assistance vocale activée. Je vous lirai les alertes de maintenance et les notifications.");
+      geSpeakNotifs(true);
+    }
+  }
+  function geSpeak(text) {
+    if (!GE_VOICE || !('speechSynthesis' in window)) return;
+    try {
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'fr-FR'; u.rate = 0.98; u.pitch = 1.0;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function geSpeakNotifs(all) {
+    if (!GE_VOICE) return;
+    GE_NOTIFS.forEach(function (it) {
+      if (all || !GE_SPOKEN[it.text]) { geSpeak(it.text); GE_SPOKEN[it.text] = true; }
+    });
+  }
+  function geBellOpen() {
+    var p = document.getElementById('ge-bell-panel');
+    if (p) p.classList.toggle('open');
+  }
+  function geRenderNotifs() {
+    var badge = document.getElementById('ge-bell-badge');
+    var list = document.getElementById('ge-bell-list');
+    var n = GE_NOTIFS.length;
+    if (badge) { badge.textContent = n; badge.style.display = n ? 'inline-block' : 'none'; }
+    var btn = document.getElementById('ge-bell-btn');
+    if (btn) btn.classList.toggle('has', n > 0);
+    if (!list) return;
+    if (!n) { list.innerHTML = '<div class="ge-bell-empty">Aucune alerte.</div>'; return; }
+    list.innerHTML = GE_NOTIFS.map(function (it) {
+      return '<div class="ge-bell-item ' + (it.level || 'info') + '">' + geEsc(it.text) + '</div>';
+    }).join('');
+  }
+  function geEsc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function geLoadNotifs() {
+    fetch('{% url "notifications" %}', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var prev = GE_NOTIFS.length;
+        GE_NOTIFS = d.items || [];
+        geRenderNotifs();
+        if (GE_VOICE && GE_NOTIFS.length) geSpeakNotifs(false);
+      })
+      .catch(function () {});
+  }
+  geVoiceSync();
+  geLoadNotifs();
+  setInterval(geLoadNotifs, 60000);  // rafraîchit toutes les 60 s
+</script>
+{% block body_extra %}{% endblock %}
+</body>
+</html>

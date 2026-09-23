@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Rapport de production — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+
+<div class="ge-print-bar">
+  <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,.04);padding:12px 14px;border-radius:10px;border:1px solid var(--ge-border);">
+    <div><label style="display:block;font-size:12px;color:var(--ge-muted);">Du</label>
+      <input type="date" name="start" value="{{ start }}" style="padding:7px;border-radius:8px;border:1px solid var(--ge-border);background:rgba(4,35,26,.6);color:#fff;"></div>
+    <div><label style="display:block;font-size:12px;color:var(--ge-muted);">Au</label>
+      <input type="date" name="end" value="{{ end }}" style="padding:7px;border-radius:8px;border:1px solid var(--ge-border);background:rgba(4,35,26,.6);color:#fff;"></div>
+    <button type="submit">Générer</button>
+  </form>
+</div>
+<div class="ge-print-bar">
+  <button onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+  <a class="secondary" href="{% url 'tab' 'ingenierie' %}">← Retour Ingénierie</a>
+</div>
+
+<div class="ge-doc">
+  <div class="ge-doc-head">
+    <div>
+      <h1>Rapport de production</h1>
+      <div class="ge-doc-meta">
+        Période : <b>{{ start_fr }}</b> au <b>{{ end_fr }}</b><br>
+        N° {{ num }} — édité le {{ today }} par {{ generated_by }}
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-weight:800;color:#0a5c3f;font-size:16px;">{{ ci.company_name }}</div>
+      {% if ci.address %}<div style="font-size:12px;color:#555;">{{ ci.address }}</div>{% endif %}
+      {% if ci.phone %}<div style="font-size:12px;color:#555;">Tél : {{ ci.phone }}</div>{% endif %}
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Engin</th><th>Jours</th><th>Heures</th><th>Production (t)</th>
+        <th>Carburant (L)</th><th>Cycles</th><th>t/h</th><th>L/t</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.machine_id }}</td>
+        <td>{{ r.jours }}</td>
+        <td>{{ r.h|floatformat:1 }}</td>
+        <td>{{ r.prod|floatformat:1 }}</td>
+        <td>{{ r.fuel|floatformat:1 }}</td>
+        <td>{{ r.cyc|floatformat:0 }}</td>
+        <td>{{ r.tph|floatformat:2 }}</td>
+        <td>{{ r.lpt|floatformat:3 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" style="text-align:center;color:#777;">Aucune saisie sur cette période.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if rows %}
+    <tfoot>
+      <tr>
+        <td>TOTAL ({{ tot.engins }} engins)</td>
+        <td>—</td>
+        <td>{{ tot.h|floatformat:1 }}</td>
+        <td>{{ tot.prod|floatformat:1 }}</td>
+        <td>{{ tot.fuel|floatformat:1 }}</td>
+        <td>{{ tot.cyc }}</td>
+        <td>{{ tot.tph|floatformat:2 }}</td>
+        <td>{{ tot.lpt|floatformat:3 }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+
+  <div class="ge-doc-sign">
+    Fait à {{ ci.address|default:"________________" }}, le {{ today }}<br><br>
+    {{ ci.signatory_title|default:"Le responsable" }}<br>
+    <b>{{ ci.signatory_name|default:generated_by }}</b>
+  </div>
+</div>
+
+{% if print %}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });</script>{% endif %}
+{% endblock %}

@@ -1,0 +1,164 @@
+/* =====================================================================
+   GOOD ENGINEERS OS — page de connexion (split-screen vert / or)
+   Portée depuis l'ancienne app Streamlit, réécrite pour du HTML propre.
+   ===================================================================== */
+html, body { height: 100%; overflow: hidden; background: #06291f; }
+
+.ge-login {
+  display: flex;
+  min-height: 100svh;
+  height: 100svh;
+  width: 100%;
+}
+
+/* --- Colonne gauche : hero ----------------------------------------- */
+.ge-login-hero {
+  flex: 1.58;
+  min-height: 100svh;
+  background-color: #13251f;
+  background-size: cover;
+  background-position: center 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(28px, 3vw, 48px);
+  overflow: hidden;
+}
+.ge-login-brand {
+  width: clamp(240px, 26vw, 400px);
+  max-width: 100%;
+  background: #032b1d;
+  border-radius: 6px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+.ge-login-brand img { width: 100%; height: auto; display: block; }
+.ge-login-hero-copy { max-width: 760px; color: #f7f8f5; padding-bottom: 10px; }
+.ge-login-hero-copy h1 {
+  color: #fff;
+  font-size: clamp(38px, 4.25vw, 68px);
+  line-height: 1.06;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin: 0 0 14px;
+}
+.ge-login-hero-copy h1 span { color: var(--ge-gold-soft, #ffce61); }
+.ge-login-hero-copy p { color: #f3f5f0; font-size: clamp(15px, 1.42vw, 22px); line-height: 1.5; margin: 0; }
+.ge-login-features {
+  display: flex; flex-wrap: wrap; gap: clamp(12px, 1.4vw, 24px);
+  margin-top: 40px; font-size: clamp(13px, 1.1vw, 17px); color: #f8f9f6;
+}
+.ge-login-features span { display: inline-flex; align-items: center; gap: 10px; }
+.ge-login-features span + span {
+  border-left: 1px solid rgba(245, 184, 0, 0.65);
+  padding-left: clamp(12px, 1.4vw, 24px);
+}
+.ge-login-features b {
+  width: 13px; height: 13px; border: 2px solid #f5b800;
+  border-radius: 3px; display: inline-block;
+}
+
+/* --- Colonne droite : formulaire ----------------------------------- */
+.ge-login-form-panel {
+  flex: 1;
+  background: #052b20;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(30px, 6vh, 64px) clamp(28px, 4.3vw, 84px) 24px;
+  overflow: hidden;
+}
+.ge-login-form-head { margin-bottom: clamp(20px, 3.5vh, 34px); }
+.ge-login-eyebrow {
+  color: #f5b800; font-weight: 700; font-size: 14px; letter-spacing: 0.27em;
+  text-transform: uppercase; margin: 0 0 clamp(18px, 2.8vh, 28px);
+}
+.ge-login-eyebrow::after {
+  content: ''; width: 38px; height: 2px; background: #f5b800;
+  display: block; margin-top: 10px;
+}
+.ge-login-form-head h2 { color: #fff; font-size: clamp(40px, 3.35vw, 54px); line-height: 1.1; margin: 0 0 14px; }
+.ge-login-form-head p:last-child { color: #d9e2dc; font-size: clamp(16px, 1.25vw, 21px); line-height: 1.45; margin: 0; }
+
+.ge-login-form {
+  padding: clamp(18px, 2.4vh, 26px);
+  border: 1px solid rgba(245, 184, 0, 0.24);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(15, 67, 51, 0.94), rgba(7, 45, 34, 0.94));
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.6vh, 16px);
+}
+.ge-login-form label {
+  color: #f8f4e8; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.055em; text-transform: uppercase; margin-bottom: -4px;
+}
+.ge-login-form input {
+  min-height: 58px;
+  border: 1px solid rgba(221, 235, 227, 0.42);
+  border-radius: 12px;
+  background: rgba(4, 35, 26, 0.78);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+  color: #fff;
+  caret-color: #f5b800;
+  font-size: 16px;
+  padding: 0 17px;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.ge-login-form input:focus {
+  outline: none;
+  border-color: #f5b800;
+  background: rgba(5, 43, 32, 0.96);
+  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.14), inset 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+.ge-login-form button {
+  width: 100%; min-height: 60px; margin-top: 2px;
+  background: #f5b800; border: 1px solid #f5b800; border-radius: 12px;
+  color: #10251c; font-size: 18px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.ge-login-form button:hover { background: #ffcc35; border-color: #ffcc35; }
+.ge-login-error {
+  background: rgba(220, 53, 69, 0.16);
+  border: 1px solid rgba(220, 53, 69, 0.5);
+  color: #ffb3bb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* --- Valeurs animées ----------------------------------------------- */
+@keyframes geValuePulse {
+  0%, 100% { color: #f5b800; text-shadow: 0 0 0 rgba(245, 184, 0, 0); transform: translateY(0) scale(1); }
+  50% { color: #ffd969; text-shadow: 0 0 18px rgba(245, 184, 0, 0.48); transform: translateY(-2px) scale(1.035); }
+}
+.ge-login-values {
+  display: flex; align-items: center; justify-content: center; gap: clamp(10px, 1.1vw, 18px);
+  margin: clamp(20px, 3.5vh, 34px) 0 0;
+  color: #f5b800;
+  font-family: 'Oswald', 'Montserrat', sans-serif;
+  font-size: clamp(17px, 1.42vw, 23px); font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.ge-login-values span { display: inline-block; animation: geValuePulse 3.2s ease-in-out infinite; }
+.ge-login-values span:nth-of-type(2) { animation-delay: 0.35s; }
+.ge-login-values span:nth-of-type(3) { animation-delay: 0.7s; }
+.ge-login-values i { color: rgba(255, 255, 255, 0.48); font-style: normal; font-size: 0.72em; }
+@media (prefers-reduced-motion: reduce) { .ge-login-values span { animation: none; } }
+
+/* --- Petit écran : hero au-dessus du formulaire -------------------- */
+@media (max-width: 800px) {
+  html, body { overflow: auto; }
+  .ge-login { flex-direction: column; height: auto; }
+  .ge-login-hero { flex: none; min-height: 300px; padding: 24px; }
+  .ge-login-brand { width: min(260px, 70%); }
+  .ge-login-hero-copy h1 { font-size: clamp(28px, 8vw, 42px); }
+  .ge-login-features { margin-top: 18px; }
+  .ge-login-form-panel { flex: none; min-height: 0; padding: 34px 24px 40px; }
+}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}SST — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🦺 Santé &amp; sécurité (SST)</h1>
+  <p>Fiches sécurité, contrôles conducteurs et suivi</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid">
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">📋 Fiches SST</div><div class="kpi-val">{{ nb_fiches }}</div><div class="kpi-sub">Total enregistrées</div></div>
+  <div class="dashboard-kpi {% if nb_incidents %}kpi-border-danger{% else %}kpi-border-success{% endif %}"><div class="kpi-lab">🚨 Incidents / accidents</div><div class="kpi-val">{{ nb_incidents }}</div><div class="kpi-sub">Cumul</div></div>
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">✅ Contrôles conducteurs</div><div class="kpi-val">{{ nb_checks }}</div><div class="kpi-sub">Total passages</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">📅 Contrôles (30 j)</div><div class="kpi-val">{{ nb_recent }}</div><div class="kpi-sub">Sur le dernier mois</div></div>
+</div>
+
+{% if can_edit %}
+<datalist id="staff-list">{% for e in staff %}<option value="{{ e.name }}">{% endfor %}</datalist>
+<div class="actions-grid">
+  <div class="content-card">
+    <h3>🚧 Nouveau contrôle conducteur</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="check">
+      <label>Date</label><input type="date" name="date" value="{{ today }}">
+      <label>Conducteur / travailleur</label><input list="staff-list" name="conducteur" placeholder="Nom (liste RH ou libre)" required>
+      <label>Véhicule / engin</label><input type="text" name="vehicule" placeholder="Ex. DT-01" required>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:4px 0;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:500;text-transform:none;"><input type="checkbox" name="insp" checked style="width:auto;min-height:auto;"> Inspection véhicule</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:500;text-transform:none;"><input type="checkbox" name="take5" checked style="width:auto;min-height:auto;"> Take 5</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:500;text-transform:none;"><input type="checkbox" name="frein" checked style="width:auto;min-height:auto;"> Test de frein</label>
+      </div>
+      <label>Remarques</label><input type="text" name="notes" placeholder="Anomalies, poste, shift…">
+      <button class="btn-primary">Enregistrer le contrôle</button>
+    </form>
+  </div>
+  <div class="content-card">
+    <h3>📝 Nouvelle fiche SST</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="entry">
+      <label>Type</label><select name="type">{% for t in types %}<option>{{ t }}</option>{% endfor %}</select>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;"><label>Date</label><input type="date" name="date" value="{{ today }}"></div>
+        <div style="flex:1;"><label>Gravité</label><select name="gravite">{% for g in gravites %}<option>{{ g }}</option>{% endfor %}</select></div>
+      </div>
+      <label>Lieu</label><input type="text" name="lieu" placeholder="Zone, atelier, front…">
+      <label>Description</label><textarea name="description" placeholder="Décrire l'observation, l'incident ou l'action…" required></textarea>
+      <button class="btn-primary">Enregistrer la fiche</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <h3>📊 Synthèse par conducteur</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr><th>Conducteur</th><th>Passages</th><th>Inspections véh.</th><th>Take 5</th><th>Tests frein</th></tr></thead>
+      <tbody>
+        {% for s in checks_summary %}
+        <tr><td><strong>{{ s.conducteur }}</strong></td><td>{{ s.passages }}</td><td>{{ s.insp }}</td><td>{{ s.take5 }}</td><td>{{ s.frein }}</td></tr>
+        {% empty %}<tr><td colspan="5" style="text-align:center;color:#A9BDB2;">Aucun contrôle enregistré</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="content-card">
+  <h3>📜 Fiches SST récentes</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr><th>Date</th><th>Type</th><th>Gravité</th><th>Lieu</th><th>Description</th><th>Auteur</th></tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr><td>{{ e.date }}</td><td>{{ e.type }}</td>
+          <td>{% if e.gravite == 'Critique' or e.gravite == 'Élevée' %}<span class="badge badge-panne">{{ e.gravite }}</span>{% else %}<span class="badge badge-other">{{ e.gravite }}</span>{% endif %}</td>
+          <td>{{ e.lieu }}</td><td style="max-width:360px;">{{ e.description }}</td><td>{{ e.auteur }}</td></tr>
+        {% empty %}<tr><td colspan="6" style="text-align:center;color:#A9BDB2;">Aucune fiche</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

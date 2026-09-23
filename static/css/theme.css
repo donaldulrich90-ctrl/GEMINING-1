@@ -1,0 +1,364 @@
+/* =====================================================================
+   GOOD ENGINEERS OS — thème global (vert foncé / or)
+   Porté depuis l'ancienne app Streamlit (mêmes couleurs de marque).
+   ===================================================================== */
+:root {
+  --ge-bg: #071A14;
+  --ge-bg-2: #0D2A20;
+  --ge-panel: #0f2b21;
+  --ge-gold: #F5B800;
+  --ge-gold-soft: #ffce61;
+  --ge-text: #F3F6F2;
+  --ge-muted: #A9BDB2;
+  --ge-border: rgba(255, 255, 255, 0.08);
+  --ge-success: #28A745;
+  --ge-warning: #FF6B00;
+  --ge-danger: #DC3545;
+  --ge-accent: #F5B800;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--ge-bg);
+  color: var(--ge-text);
+  font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--ge-gold); text-decoration: none; }
+h1, h2, h3, h4 { font-family: 'Oswald', 'Montserrat', sans-serif; font-weight: 700; }
+
+/* --- Ossature : barre latérale + zone principale ------------------- */
+.ge-app { display: flex; min-height: 100vh; }
+
+.ge-sidebar {
+  width: 234px; flex: 0 0 234px;
+  background: linear-gradient(180deg, #0c2419 0%, #071a14 100%);
+  border-right: 1px solid rgba(245, 184, 0, 0.16);
+  padding: 18px 16px; display: flex; flex-direction: column; gap: 16px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.ge-sb-logo { background: rgba(255,255,255,.04); border: 1px solid rgba(245,184,0,.28); border-radius: 12px; padding: 8px 10px; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.ge-sb-logo img { width: 100%; max-width: 176px; height: auto; display: inline-block; }
+
+/* --- Sous-onglets (modules riches) --------------------------------- */
+.subtab-group { margin-top: 4px; }
+.subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 16px; border-bottom: 1px solid var(--ge-border); padding-bottom: 12px; }
+.subtab-btn { background: var(--ge-bg-2); color: var(--ge-muted); border: 1px solid var(--ge-border); border-radius: 8px; padding: 9px 15px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; transition: all .15s ease; }
+.subtab-btn:hover { color: var(--ge-text); border-color: rgba(245,184,0,.4); }
+.subtab-btn.active { background: var(--ge-gold); color: #10251c; border-color: var(--ge-gold); }
+.subtab-panel { display: none; }
+.subtab-panel.active { display: block; }
+.ge-sb-company { text-align: center; }
+.ge-sb-eyebrow { color: var(--ge-gold); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.ge-sb-name { color: #fff; font-weight: 800; font-size: 16px; margin-top: 3px; line-height: 1.2; }
+.ge-sb-theme {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255,255,255,.05); border: 1px solid var(--ge-border);
+  color: var(--ge-text); border-radius: 10px; padding: 11px; font-weight: 700; cursor: pointer; font-size: 14px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.ge-sb-theme:hover { border-color: var(--ge-gold); background: rgba(245,184,0,.08); }
+.ge-sb-block { background: rgba(0,0,0,.20); border: 1px solid var(--ge-border); border-radius: 12px; padding: 12px 14px; }
+.ge-sb-h { color: var(--ge-gold); font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 8px; }
+.ge-sb-line { color: var(--ge-muted); font-size: 13.5px; margin: 4px 0; }
+.ge-sb-line b { color: #fff; }
+.ge-sb-foot { margin-top: auto; border-top: 1px solid var(--ge-border); padding-top: 12px; text-align: center; }
+.ge-sb-user { color: #fff; font-weight: 700; }
+.ge-sb-role { color: var(--ge-gold); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.ge-logout {
+  border: 1px solid rgba(245, 184, 0, 0.4); background: rgba(245, 184, 0, 0.08); color: var(--ge-gold);
+  border-radius: 8px; padding: 9px 14px; font-weight: 700; font-size: 13px; cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.ge-logout:hover { background: rgba(245, 184, 0, 0.18); border-color: var(--ge-gold); }
+
+.ge-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* --- En-tête marque (masthead) ------------------------------------- */
+.ge-masthead {
+  background: linear-gradient(180deg, #063D2B 0%, #0a2419 100%);
+  border-bottom: 2px solid rgba(245, 184, 0, 0.4);
+  padding: 18px 20px 16px; text-align: center; position: relative;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+}
+.ge-mast-logo { max-height: 108px; max-width: min(440px, 82%); height: auto; }
+.ge-mast-strap { margin-top: 8px; color: var(--ge-gold); font-family: 'Oswald', sans-serif; font-weight: 800; letter-spacing: 0.18em; font-size: clamp(14px, 1.6vw, 20px); }
+.ge-mast-strap span { color: var(--ge-gold-soft); }
+.ge-mast-sub { color: #cfe0d6; font-size: clamp(13px, 1.2vw, 16px); margin-top: 4px; font-weight: 600; }
+.ge-burger { display: none; position: absolute; left: 14px; top: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--ge-border); color: var(--ge-gold); border-radius: 8px; font-size: 18px; padding: 5px 12px; cursor: pointer; }
+
+/* --- Bandeau défilant ---------------------------------------------- */
+.ge-marquee { background: linear-gradient(90deg, rgba(245,184,0,.15), rgba(245,184,0,.05)); border-bottom: 1px solid rgba(245,184,0,.3); overflow: hidden; white-space: nowrap; }
+.ge-marquee-track { display: inline-block; padding: 8px 0; animation: geMarquee 30s linear infinite; }
+.ge-marquee-track span { color: var(--ge-gold); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; margin: 0 34px; text-transform: uppercase; }
+@keyframes geMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ge-marquee-track { animation: none; } }
+
+/* --- Navigation par onglets ---------------------------------------- */
+.ge-nav {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 12px clamp(14px, 2vw, 26px);
+  background: var(--ge-bg-2); border-bottom: 1px solid var(--ge-border);
+  position: sticky; top: 0; z-index: 20;
+}
+.ge-nav a {
+  color: var(--ge-muted); padding: 10px 15px; border-radius: 10px;
+  font-weight: 700; font-size: 13px; letter-spacing: 0.02em;
+  border: 1px solid var(--ge-border); background: rgba(255, 255, 255, 0.02);
+  transition: color .15s ease, background .15s ease, border-color .15s ease; white-space: nowrap;
+}
+.ge-nav a:hover { color: var(--ge-text); background: rgba(255, 255, 255, 0.06); }
+.ge-nav a.active { color: #10251c; background: var(--ge-gold); border-color: var(--ge-gold); }
+
+/* --- Barre latérale repliable (mobile / tablette) ------------------ */
+@media (max-width: 980px) {
+  .ge-sidebar { position: fixed; left: 0; top: 0; z-index: 60; transform: translateX(-100%); transition: transform .25s ease; box-shadow: 8px 0 34px rgba(0,0,0,.55); }
+  .ge-app.ge-sidebar-open .ge-sidebar { transform: translateX(0); }
+  .ge-burger { display: block; }
+  .ge-masthead { padding-left: 60px; padding-right: 60px; }
+}
+
+/* --- Mode Jour (thème clair) --------------------------------------- */
+:root[data-theme="light"] {
+  --ge-bg: #eef2ee; --ge-bg-2: #e4ebe5; --ge-panel: #ffffff;
+  --ge-text: #16261f; --ge-muted: #566b60; --ge-border: rgba(0, 0, 0, 0.1);
+}
+:root[data-theme="light"] .content-card { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+:root[data-theme="light"] .dashboard-kpi { background: #ffffff; border-color: rgba(0,0,0,.08); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+:root[data-theme="light"] .dashboard-kpi .kpi-val { color: #16261f; }
+:root[data-theme="light"] .dashboard-kpi .kpi-lab { color: #6b7d73; }
+:root[data-theme="light"] .ge-form input, :root[data-theme="light"] .ge-form select, :root[data-theme="light"] .ge-form textarea { background: #fff; color: #16261f; border-color: rgba(0,0,0,.2); }
+:root[data-theme="light"] .ge-nav a { background: rgba(0,0,0,.03); }
+:root[data-theme="light"] .ge-table tr:hover td { background: rgba(0,0,0,.03); }
+
+/* --- Contenu ------------------------------------------------------- */
+.ge-content { flex: 1; padding: clamp(16px, 2.5vw, 30px); max-width: 1600px; width: 100%; margin: 0 auto; }
+
+.content-card {
+  background: var(--ge-panel);
+  border: 1px solid var(--ge-border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin: 14px 0;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+}
+.content-card > h2, .content-card > h3 {
+  margin: 0 0 14px;
+  color: var(--ge-text);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+/* --- En-tête dashboard --------------------------------------------- */
+.dash-header {
+  background: linear-gradient(90deg, #063D2B 0%, #0D2A20 100%);
+  padding: 26px;
+  border-radius: 12px;
+  margin-bottom: 22px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--ge-border);
+}
+.dash-header h1 {
+  color: #EAEAEA;
+  margin: 0;
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.dash-header p { color: var(--ge-muted); margin: 10px 0 0; font-size: 15px; font-weight: 600; }
+
+/* --- Cartes KPI (glassmorphism industriel) ------------------------- */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 6px; }
+.dashboard-kpi {
+  background: rgba(20, 28, 45, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 20px 22px;
+  min-height: 132px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.dashboard-kpi:hover {
+  box-shadow: 0 12px 42px rgba(0, 0, 0, 0.45);
+  border-color: rgba(245, 184, 0, 0.30);
+  transform: translateY(-2px);
+}
+.dashboard-kpi .kpi-lab {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.10em; color: #8A9BB0; margin-bottom: 10px; line-height: 1.3;
+}
+.dashboard-kpi .kpi-val {
+  font-size: clamp(28px, 2.8vw, 42px); font-weight: 900; color: #EAEAEA;
+  line-height: 1.1; letter-spacing: -0.02em;
+}
+.dashboard-kpi .kpi-sub { font-size: 13px; color: #7A8A9A; margin-top: 10px; font-weight: 600; }
+.kpi-border-success { border-left: 4px solid var(--ge-success); }
+.kpi-border-warning { border-left: 4px solid var(--ge-warning); }
+.kpi-border-danger  { border-left: 4px solid var(--ge-danger); }
+.kpi-border-accent  { border-left: 4px solid var(--ge-accent); }
+.kpi-border-muted   { border-left: 4px solid #5A5A5A; }
+
+.status-active { color: var(--ge-success); font-weight: 800; }
+.status-breakdown { color: var(--ge-danger); font-weight: 800; }
+.status-maintenance { color: var(--ge-warning); font-weight: 800; }
+.status-idle { color: var(--ge-muted); font-weight: 800; }
+
+/* --- Graphiques ---------------------------------------------------- */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-box { width: 100%; height: 330px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 8px; }
+.legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ge-muted); font-weight: 600; }
+.legend-item i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+/* --- Alertes ------------------------------------------------------- */
+.alerts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.alert-box { border-radius: 10px; padding: 14px 16px; font-size: 14px; }
+.alert-box ul { margin: 8px 0 0; padding-left: 18px; }
+.alert-danger { background: rgba(220, 53, 69, 0.14); border: 1px solid rgba(220, 53, 69, 0.4); }
+.alert-warning { background: rgba(255, 107, 0, 0.12); border: 1px solid rgba(255, 107, 0, 0.4); }
+.alert-title { font-weight: 800; }
+
+/* --- Tableaux ------------------------------------------------------ */
+.ge-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ge-table th {
+  text-align: left; padding: 10px 12px; color: var(--ge-muted);
+  text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--ge-border);
+}
+.ge-table td { padding: 10px 12px; border-bottom: 1px solid var(--ge-border); color: var(--ge-text); }
+.ge-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-weight: 700; font-size: 12px;
+}
+.badge-active { background: rgba(40, 167, 69, 0.22); color: #7ee29a; }
+.badge-panne { background: rgba(220, 53, 69, 0.22); color: #f2919b; }
+.badge-other { background: rgba(255, 107, 0, 0.18); color: #ffb680; }
+
+/* --- Formulaires --------------------------------------------------- */
+.ge-form { display: flex; flex-direction: column; gap: 10px; }
+.ge-form label { color: var(--ge-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: -4px; }
+.ge-form input, .ge-form select, .ge-form textarea {
+  min-height: 44px; border: 1px solid rgba(221, 235, 227, 0.28); border-radius: 9px;
+  background: rgba(4, 35, 26, 0.6); color: #fff; font-size: 15px; padding: 0 12px; width: 100%;
+  font-family: inherit;
+}
+.ge-form textarea { min-height: 70px; padding: 10px 12px; }
+.ge-form input:focus, .ge-form select:focus, .ge-form textarea:focus {
+  outline: none; border-color: var(--ge-gold); box-shadow: 0 0 0 2px rgba(245, 184, 0, 0.15);
+}
+.ge-form select option { background: #0D2A20; color: #fff; }
+.btn-primary, .btn-danger {
+  min-height: 46px; border-radius: 9px; font-weight: 800; font-size: 15px; cursor: pointer;
+  margin-top: 6px; border: 1px solid transparent; transition: filter 0.15s ease;
+}
+.btn-primary { background: var(--ge-gold); color: #10251c; border-color: var(--ge-gold); }
+.btn-danger { background: var(--ge-danger); color: #fff; border-color: var(--ge-danger); }
+.btn-primary:hover, .btn-danger:hover { filter: brightness(1.08); }
+.actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.actions-grid .content-card { margin: 0; }
+.perm-checks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 14px; margin: 8px 0; }
+@media (max-width: 900px) {
+  .actions-grid { grid-template-columns: 1fr; }
+  .carb-grid { grid-template-columns: 1fr !important; }
+}
+
+/* --- Assistant flottant -------------------------------------------- */
+#ge-bot-fab { position: fixed; right: 20px; bottom: 20px; z-index: 90; width: 56px; height: 56px; border-radius: 50%; background: var(--ge-gold); color: #10251c; border: none; font-size: 26px; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.4); transition: transform .15s ease; }
+#ge-bot-fab:hover { transform: scale(1.08); }
+.ge-bot { position: fixed; right: 20px; bottom: 86px; z-index: 91; width: min(370px, 92vw); max-height: 72vh; background: var(--ge-panel); border: 1px solid rgba(245,184,0,.4); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.55); display: none; flex-direction: column; overflow: hidden; }
+.ge-bot.open { display: flex; }
+.ge-bot-head { background: var(--ge-gold); color: #10251c; font-weight: 800; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; }
+.ge-bot-msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
+.ge-bot-msg { padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; max-width: 88%; }
+.ge-bot-msg.bot { background: rgba(255,255,255,.05); border: 1px solid var(--ge-border); color: var(--ge-text); align-self: flex-start; border-bottom-left-radius: 4px; }
+.ge-bot-msg.user { background: rgba(245,184,0,.16); border: 1px solid rgba(245,184,0,.35); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.ge-bot-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--ge-border); }
+.ge-bot-input input { flex: 1; background: rgba(4,35,26,.6); border: 1px solid var(--ge-border); border-radius: 10px; color: #fff; padding: 10px 12px; font-size: 14px; }
+.ge-bot-input button { background: var(--ge-gold); color: #10251c; border: none; border-radius: 10px; padding: 0 16px; font-size: 16px; font-weight: 800; cursor: pointer; }
+.ge-bot-teach { border-top: 1px solid var(--ge-border); padding: 8px 10px; }
+.ge-bot-teach-toggle { width: 100%; background: rgba(255,255,255,.04); border: 1px dashed rgba(245,184,0,.4); color: var(--ge-gold); border-radius: 10px; padding: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.ge-bot-teach-form { display: none; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ge-bot-teach-form.open { display: flex; }
+.ge-bot-teach-form input, .ge-bot-teach-form textarea { background: rgba(4,35,26,.6); border: 1px solid var(--ge-border); border-radius: 8px; color: #fff; padding: 8px 10px; font-size: 13px; font-family: inherit; }
+.ge-bot-teach-form textarea { min-height: 60px; }
+.ge-bot-teach-form button { background: var(--ge-gold); color: #10251c; border: none; border-radius: 8px; padding: 8px; font-weight: 800; cursor: pointer; }
+
+/* --- Placeholder / interdit ---------------------------------------- */
+.ge-placeholder { text-align: center; padding: 60px 20px; }
+.ge-placeholder .big { font-size: 64px; }
+.ge-placeholder h2 { color: var(--ge-gold); margin: 14px 0 8px; }
+.ge-placeholder p { color: var(--ge-muted); max-width: 560px; margin: 0 auto; }
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .alerts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .ge-banner-titles h1 { font-size: 16px; }
+  .ge-banner-titles p { display: none; }
+}
+
+/* --- Actions du bandeau : voix + cloche de notifications ------------ */
+.ge-mast-actions { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; align-items: flex-start; z-index: 20; }
+.ge-icon-btn { position: relative; background: rgba(255,255,255,.06); border: 1px solid var(--ge-border); color: var(--ge-gold); border-radius: 8px; font-size: 14px; font-weight: 700; padding: 6px 10px; cursor: pointer; line-height: 1.1; }
+.ge-icon-btn:hover { background: rgba(245,184,0,.18); }
+.ge-icon-btn.on { background: var(--ge-gold); color: #10251c; border-color: var(--ge-gold); }
+.ge-icon-btn.has { box-shadow: 0 0 0 2px rgba(245,184,0,.35); }
+.ge-badge { position: absolute; top: -7px; right: -7px; background: #e53935; color: #fff; font-size: 11px; font-weight: 800; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 10px; padding: 0 4px; }
+.ge-bell-panel { display: none; position: absolute; right: 0; top: 42px; width: min(340px, 86vw); max-height: 60vh; overflow-y: auto; background: #0a2419; border: 1px solid rgba(245,184,0,.4); border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,.45); text-align: left; }
+.ge-bell-panel.open { display: block; }
+.ge-bell-head { padding: 12px 14px; font-weight: 800; color: var(--ge-gold); border-bottom: 1px solid rgba(245,184,0,.25); font-family: 'Oswald', sans-serif; letter-spacing: .04em; }
+.ge-bell-list { padding: 8px; }
+.ge-bell-item { padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; color: #eaf3ee; border-left: 4px solid #888; background: rgba(255,255,255,.04); }
+.ge-bell-item.danger { border-left-color: #e53935; }
+.ge-bell-item.warning { border-left-color: #f5b800; }
+.ge-bell-item.info { border-left-color: #4aa3ff; }
+.ge-bell-empty { padding: 16px; color: #9fb4a8; font-size: 13px; text-align: center; }
+.ge-nav-badge { background: #e53935; color: #fff; font-size: 11px; font-weight: 800; border-radius: 9px; padding: 1px 7px; margin-left: 4px; }
+
+:root[data-theme="light"] .ge-bell-panel { background: #fff; border-color: rgba(0,0,0,.12); }
+:root[data-theme="light"] .ge-bell-item { color: #1a2b22; background: rgba(0,0,0,.03); }
+:root[data-theme="light"] .ge-bell-head { color: #0a5c3f; }
+
+@media (max-width: 720px) {
+  .ge-mast-actions { right: 8px; top: 8px; }
+  .ge-icon-btn { padding: 5px 8px; font-size: 13px; }
+  .ge-mast-actions #ge-voice-lbl { display: none; }
+}
+
+/* --- Boutons rapports / factures ----------------------------------- */
+.ge-report-links { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 4px; }
+.ge-report-links a { display: inline-flex; align-items: center; gap: 6px; background: var(--ge-gold); color: #10251c; font-weight: 800; text-decoration: none; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--ge-gold); }
+.ge-report-links a.secondary { background: transparent; color: var(--ge-gold); }
+.ge-report-links a:hover { filter: brightness(1.05); }
+
+/* --- Documents imprimables (rapport / facture) --------------------- */
+.ge-doc { background: #fff; color: #1a1a1a; max-width: 900px; margin: 0 auto; padding: 34px 40px; border-radius: 8px; box-shadow: 0 6px 26px rgba(0,0,0,.25); }
+.ge-doc h1 { font-size: 22px; margin: 0 0 4px; color: #0a5c3f; }
+.ge-doc .ge-doc-meta { color: #555; font-size: 13px; margin-bottom: 18px; }
+.ge-doc table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+.ge-doc th, .ge-doc td { border: 1px solid #ccc; padding: 8px 10px; text-align: right; }
+.ge-doc th { background: #063D2B; color: #fff; text-align: right; }
+.ge-doc th:first-child, .ge-doc td:first-child { text-align: left; }
+.ge-doc tfoot td { font-weight: 800; background: #f3efe0; }
+.ge-doc .ge-doc-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #f5b800; padding-bottom: 12px; margin-bottom: 16px; }
+.ge-doc .ge-doc-sign { margin-top: 40px; text-align: right; color: #333; font-size: 13px; }
+.ge-print-bar { max-width: 900px; margin: 0 auto 14px; display: flex; gap: 10px; }
+.ge-print-bar button, .ge-print-bar a { background: var(--ge-gold); color: #10251c; border: none; font-weight: 800; padding: 9px 16px; border-radius: 9px; cursor: pointer; text-decoration: none; }
+.ge-print-bar a.secondary { background: transparent; color: var(--ge-gold); border: 1px solid var(--ge-gold); }
+@media print {
+  .ge-sidebar, .ge-masthead, .ge-nav, .ge-marquee, .ge-print-bar, #ge-bot-fab, #ge-bot, .ge-report-links { display: none !important; }
+  .ge-main, .ge-content, body, .ge-app { background: #fff !important; margin: 0; padding: 0; }
+  .ge-doc { box-shadow: none; max-width: 100%; padding: 0; }
+}

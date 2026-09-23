@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Marché Or — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🥇 Marché de l'or</h1>
+  <p>Cours indicatif — mis à jour le {{ ts }}</p>
+</div>
+
+<div class="kpi-grid">
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">🥇 Once troy (USD)</div>
+    <div class="kpi-val">${{ oz_usd }}</div>
+    <div class="kpi-sub">31,1035 g</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">🥇 Gramme (USD)</div>
+    <div class="kpi-val">${{ gram_usd }}</div>
+    <div class="kpi-sub">Par gramme</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-success">
+    <div class="kpi-lab">🥇 Gramme (CFA)</div>
+    <div class="kpi-val" style="font-size:30px;">{{ gram_cfa|floatformat:0 }}</div>
+    <div class="kpi-sub">FCFA / g</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-muted">
+    <div class="kpi-lab">💱 Taux USD/CFA</div>
+    <div class="kpi-val" style="font-size:30px;">{{ rates.CFA|floatformat:0 }}</div>
+    <div class="kpi-sub">1 USD = {{ rates.EUR|floatformat:2 }} EUR</div>
+  </div>
+</div>
+
+<div class="content-card" style="margin-top:16px;">
+  <p style="color:#A9BDB2;">Once en CFA : <strong style="color:#F5B800;">{{ oz_cfa|floatformat:0 }} FCFA</strong>.
+  Valeurs indicatives issues d'une API publique ; en l'absence de connexion, une valeur de repli est affichée.</p>
+</div>
+{% endblock %}

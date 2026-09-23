@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}RH — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>👥 Ressources humaines</h1>
+  <p>Personnel, équipes, présence et classements</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">👥 Employés actifs</div><div class="kpi-val">{{ nb_active }}</div><div class="kpi-sub">Effectif en poste</div></div>
+  <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">🚛 Opérateurs</div><div class="kpi-val">{{ nb_operateurs }}</div><div class="kpi-sub">Conduite d'engins</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">🏷️ Équipes</div><div class="kpi-val">{{ teams|length }}</div><div class="kpi-sub">Réparties par shift</div></div>
+</div>
+
+<div class="subtab-group" data-sg="rh">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('rh',0)">📋 Liste employés</button>
+    {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('rh',1)">➕ Ajouter employé</button>
+    <button class="subtab-btn" onclick="geSubtab('rh',2)">🛠️ Actions / présence</button>{% endif %}
+    <button class="subtab-btn" onclick="geSubtab('rh',{% if can_edit %}3{% else %}1{% endif %})">🏆 Classements</button>
+    <button class="subtab-btn" onclick="geSubtab('rh',{% if can_edit %}4{% else %}2{% endif %})">👥 Par équipe</button>
+  </div>
+  <div class="subtab-panels">
+
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>📋 Personnel actif ({{ nb_active }})</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Matricule</th><th>Nom</th><th>Rôle</th><th>Équipe</th><th>Shift</th><th>Ancienneté</th><th>Production (T)</th><th>Machine</th></tr></thead>
+          <tbody>{% for e in active %}<tr><td>{{ e.matricule }}</td><td><strong>{{ e.name }}</strong></td><td>{{ e.role }}</td><td><span class="badge badge-other">{{ e.team }}</span></td><td>{{ e.shift_type }}</td><td>{{ e.anciennete_annees }} ans</td><td>{{ e.production_tonnes }}</td><td>{{ e.assigned_machine }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+      {% if inactive %}
+      <div class="content-card"><h3>🗄️ Personnel inactif ({{ inactive|length }})</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Matricule</th><th>Nom</th><th>Rôle</th><th>Départ</th>{% if can_edit %}<th>Action</th>{% endif %}</tr></thead>
+          <tbody>{% for e in inactive %}<tr><td>{{ e.matricule }}</td><td>{{ e.name }}</td><td>{{ e.role }}</td><td>{% if e.date_depart %}{{ e.date_depart }}{% else %}—{% endif %}</td>{% if can_edit %}<td><form method="post" style="margin:0;">{% csrf_token %}<input type="hidden" name="matricule" value="{{ e.matricule }}"><button class="btn-primary" name="action" value="reactivate" style="min-height:32px;padding:0 12px;margin:0;">Réactiver</button></form></td>{% endif %}</tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if can_edit %}
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:560px;"><h3>➕ Ajouter un employé</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="add">
+          <label>Nom complet</label><input type="text" name="name" required>
+          <label>Rôle</label><select name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select>
+          <label>Équipe</label><input type="text" name="team" value="A">
+          <label>Shift</label><select name="shift">{% for s in shifts %}<option>{{ s }}</option>{% endfor %}</select>
+          <label>Date d'arrivée</label><input type="date" name="date_arrivee" value="{{ today }}">
+          <button class="btn-primary">Ajouter</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:560px;"><h3>🛠️ Actions employé</h3>
+        <form method="post" class="ge-form">{% csrf_token %}
+          <label>Employé</label><select name="matricule">{% for e in active %}<option value="{{ e.matricule }}">{{ e.name }} ({{ e.matricule }})</option>{% endfor %}</select>
+          <label>Présence du jour</label>
+          <div style="display:flex;gap:8px;"><select name="statut" style="flex:1;"><option value="present">Présent</option><option value="retard">Retard</option><option value="absent">Absent</option></select><button class="btn-primary" name="action" value="presence" style="flex:1;margin:0;">Enregistrer</button></div>
+          <div style="display:flex;gap:8px;margin-top:6px;"><button class="btn-danger" name="action" value="deactivate" style="flex:1;">Désactiver</button><button class="btn-danger" name="action" value="delete" style="flex:1;" onclick="return confirm('Supprimer définitivement ?');">Supprimer</button></div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="subtab-panel">
+      <div class="actions-grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="content-card"><h3>🥇 Production</h3><table class="ge-table"><tbody>{% for e in rank_prod %}<tr><td>{{ forloop.counter }}</td><td>{{ e.name }}</td><td style="text-align:right;">{{ e.production_tonnes }} T</td></tr>{% empty %}<tr><td>Aucun opérateur</td></tr>{% endfor %}</tbody></table></div>
+        <div class="content-card"><h3>🎖️ Ancienneté</h3><table class="ge-table"><tbody>{% for e in rank_anc %}<tr><td>{{ forloop.counter }}</td><td>{{ e.name }}</td><td style="text-align:right;">{{ e.anciennete_annees }} ans</td></tr>{% endfor %}</tbody></table></div>
+        <div class="content-card"><h3>✅ Assiduité</h3><table class="ge-table"><tbody>{% for e in rank_assi %}<tr><td>{{ forloop.counter }}</td><td>{{ e.name }}</td><td style="text-align:right;">{{ e.jours_sans_retard_absence }} j</td></tr>{% empty %}<tr><td>Aucun opérateur</td></tr>{% endfor %}</tbody></table></div>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card"><h3>👥 Effectif par équipe</h3>
+        {% for team, membres in teams.items %}
+        <h4 style="color:var(--ge-gold);margin:14px 0 8px;">Équipe {{ team }} — {{ membres|length }} personne(s)</h4>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Matricule</th><th>Nom</th><th>Rôle</th><th>Shift</th></tr></thead>
+          <tbody>{% for e in membres %}<tr><td>{{ e.matricule }}</td><td><strong>{{ e.name }}</strong></td><td>{{ e.role }}</td><td>{{ e.shift_type }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% empty %}<p style="color:#A9BDB2;">Aucune équipe.</p>{% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

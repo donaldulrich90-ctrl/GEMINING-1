@@ -1,0 +1,7 @@
+Django>=5.0,<6.0
+gunicorn>=22.0
+whitenoise>=6.6
+requests>=2.31
+# La couche données réutilise le SQLite et le JSON de l'ancienne app :
+# aucune dépendance lourde (pandas/plotly/streamlit) n'est requise côté serveur.
+# Les graphiques du dashboard sont rendus côté navigateur via Plotly.js (CDN).

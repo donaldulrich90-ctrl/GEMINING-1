@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets & données (ne JAMAIS versionner)
+.secret_key
+.env
+app_database.json
+geo_data.db
+tenant_data/
+*.corrupt.bak
+
+# Fichiers statiques générés
+staticfiles/
+
+# Divers
+*.log
+.DS_Store

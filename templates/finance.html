@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Finance — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>💰 Gestion financière — Contrats miniers</h1>
+  <p>Revenus, contrats, dépenses et facturation</p>
+</div>
+
+{% if ge_is_admin %}
+<div class="ge-report-links">
+  <a href="{% url 'facture_mensuelle' %}">🧾 Facture mensuelle pour la mine (fin de mois)</a>
+</div>
+{% endif %}
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="subtab-group" data-sg="fin">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('fin',0)">📊 Vue d'ensemble</button>
+    <button class="subtab-btn" onclick="geSubtab('fin',1)">💸 Dépenses &amp; gain</button>
+    <button class="subtab-btn" onclick="geSubtab('fin',2)">📦 Contrats BCM</button>
+    <button class="subtab-btn" onclick="geSubtab('fin',3)">⏰ Contrats horaires</button>
+    {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('fin',4)">➕ Ajouter contrat</button>
+    <button class="subtab-btn" onclick="geSubtab('fin',5)">✏️ Modifier taux</button>
+    <button class="subtab-btn" onclick="geSubtab('fin',6)">⚙️ Informations entreprise</button>{% endif %}
+    <button class="subtab-btn" onclick="geSubtab('fin',{% if can_edit %}7{% else %}4{% endif %})">🧾 Générer facture</button>
+  </div>
+  <div class="subtab-panels">
+
+    <!-- 0 · Vue d'ensemble -->
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>📊 Résumé des revenus — tous contrats confondus</h3>
+        <div class="kpi-grid">
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">💵 Revenu journalier</div><div class="kpi-val">${{ summary.jour|floatformat:0 }}</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">📆 Revenu hebdomadaire</div><div class="kpi-val">${{ summary.semaine|floatformat:0 }}</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🗓️ Revenu mensuel</div><div class="kpi-val">${{ summary.mois|floatformat:0 }}</div></div>
+          <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">📈 Revenu annuel</div><div class="kpi-val" style="font-size:30px;">${{ summary.annee|floatformat:0 }}</div></div>
+        </div>
+      </div>
+      <div class="content-card"><h3>📋 Tous les contrats</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>ID</th><th>Nom</th><th>Client</th><th>Type</th><th>Taux</th><th>Revenu mois</th><th>Revenu année</th><th>Statut</th></tr></thead>
+          <tbody>{% for c in contracts %}<tr><td><strong>{{ c.id }}</strong></td><td>{{ c.name }}</td><td>{{ c.client }}</td><td>{{ c.type }}</td><td>{{ c.rate }}{% if c.is_bcm %}/BCM{% else %}/h{% endif %}</td><td>${{ c.rev_mois }}</td><td>${{ c.rev_annee }}</td><td>{% if c.active %}<span class="badge badge-active">Actif</span>{% else %}<span class="badge badge-panne">Inactif</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="8" style="text-align:center;color:#A9BDB2;">Aucun contrat</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 1 · Dépenses & gain -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>💸 Dépenses carburant</h3>
+        <form method="get" class="ge-form" style="flex-direction:row;align-items:end;gap:10px;flex-wrap:wrap;">
+          <div><label>Du</label><input type="date" name="start" value="{{ period_start }}"></div>
+          <div><label>Au</label><input type="date" name="end" value="{{ period_end }}"></div>
+          <button class="btn-primary" style="margin:0;">Filtrer</button>
+          <div style="margin-left:auto;font-size:20px;font-weight:800;color:#F5B800;">Total : ${{ fuel_total }}</div>
+        </form>
+        <div style="overflow-x:auto;margin-top:12px;"><table class="ge-table">
+          <thead><tr><th>Date</th><th>Machine</th><th>Litres</th><th>Coût ($)</th><th>Source</th></tr></thead>
+          <tbody>{% for f in fuel_rows %}<tr><td>{{ f.date }}</td><td><strong>{{ f.machine }}</strong></td><td>{{ f.liters|floatformat:0 }}</td><td>{{ f.cost|floatformat:2 }}</td><td>{{ f.source }}</td></tr>{% empty %}<tr><td colspan="5" style="text-align:center;color:#A9BDB2;">Aucune dépense sur la période</td></tr>{% endfor %}</tbody>
+        </table></div>
+        <p style="margin-top:12px;color:#A9BDB2;">Gain net du mois (revenus − carburant) : <strong style="color:{% if net_mois >= 0 %}#2ecc71{% else %}#e74c3c{% endif %};">${{ net_mois }}</strong></p>
+      </div>
+    </div>
+
+    <!-- 2 · Contrats BCM -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>📦 Contrats en BCM (volume transporté)</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>ID</th><th>Nom</th><th>Client</th><th>Taux</th><th>Volume jour (BCM)</th><th>Volume mois (BCM)</th><th>Revenu mois</th><th>Revenu année</th></tr></thead>
+          <tbody>{% for c in contracts %}{% if c.is_bcm %}<tr><td><strong>{{ c.id }}</strong></td><td>{{ c.name }}</td><td>{{ c.client }}</td><td>{{ c.rate }}/BCM</td><td>{{ c.vol_jour }}</td><td>{{ c.vol_mois }}</td><td>${{ c.rev_mois }}</td><td>${{ c.rev_annee }}</td></tr>{% endif %}{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 3 · Contrats horaires -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>⏰ Contrats à l'heure</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>ID</th><th>Nom</th><th>Client</th><th>Taux</th><th>Heures jour</th><th>Heures mois</th><th>Revenu mois</th><th>Revenu année</th></tr></thead>
+          <tbody>{% for c in contracts %}{% if not c.is_bcm %}<tr><td><strong>{{ c.id }}</strong></td><td>{{ c.name }}</td><td>{{ c.client }}</td><td>{{ c.rate }}/h</td><td>{{ c.h_jour }}</td><td>{{ c.h_mois }}</td><td>${{ c.rev_mois }}</td><td>${{ c.rev_annee }}</td></tr>{% endif %}{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <!-- 4 · Ajouter contrat -->
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:640px;"><h3>➕ Ajouter un nouveau contrat</h3>
+        <form method="post" class="ge-form">
+          {% csrf_token %}<input type="hidden" name="action" value="add_contract">
+          <label>ID contrat</label><input type="text" name="contract_id" placeholder="CONT-003" required>
+          <label>Nom</label><input type="text" name="name" required>
+          <label>Client</label><input type="text" name="client">
+          <label>Type</label><select name="contract_type"><option value="BCM">BCM (volume)</option><option value="HOURLY">Horaire</option></select>
+          <div style="display:flex;gap:8px;"><div style="flex:2;"><label>Taux</label><input type="number" name="rate" step="0.01" required></div><div style="flex:1;"><label>Devise</label><select name="currency"><option>USD</option><option>CFA</option><option>EUR</option></select></div></div>
+          <label>Somme négociée (USD, optionnel)</label><input type="number" name="somme" step="0.01">
+          <button class="btn-primary">Créer le contrat</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 5 · Modifier taux -->
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:640px;"><h3>✏️ Modifier les taux / statut</h3>
+        <form method="post" class="ge-form">
+          {% csrf_token %}<input type="hidden" name="action" value="update_rate">
+          <label>Contrat</label><select name="contract_id">{% for c in contracts %}<option value="{{ c.id }}">{{ c.id }} — {{ c.name }}</option>{% endfor %}</select>
+          <div style="display:flex;gap:8px;"><div style="flex:2;"><label>Nouveau taux</label><input type="number" name="rate" step="0.01" required></div><div style="flex:1;"><label>Devise</label><select name="currency"><option>USD</option><option>CFA</option><option>EUR</option></select></div></div>
+          <button class="btn-primary">Mettre à jour</button>
+        </form>
+        <form method="post" class="ge-form" style="margin-top:12px;">
+          {% csrf_token %}<input type="hidden" name="action" value="toggle">
+          <label>Activer / désactiver un contrat</label><select name="contract_id">{% for c in contracts %}<option value="{{ c.id }}">{{ c.id }} — {{ c.name }}</option>{% endfor %}</select>
+          <button class="btn-danger">Basculer le statut</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 6 · Informations entreprise -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>⚙️ Informations de l'entreprise (facturation)</h3>
+        <form method="post" class="ge-form" style="max-width:820px;">
+          {% csrf_token %}<input type="hidden" name="action" value="company">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><label>Nom de l'entreprise</label><input type="text" name="company_name" value="{{ company.company_name }}"></div>
+            <div><label>Téléphone</label><input type="text" name="phone" value="{{ company.phone }}"></div>
+            <div><label>Email</label><input type="text" name="email" value="{{ company.email }}"></div>
+            <div><label>N° fiscal / IFU</label><input type="text" name="tax_id" value="{{ company.tax_id }}"></div>
+            <div><label>RCCM</label><input type="text" name="rccm" value="{{ company.rccm }}"></div>
+            <div><label>Infos bancaires</label><input type="text" name="bank_info" value="{{ company.bank_info }}"></div>
+            <div><label>Signataire (titre)</label><input type="text" name="signatory_title" value="{{ company.signatory_title }}"></div>
+            <div><label>Signataire (nom)</label><input type="text" name="signatory_name" value="{{ company.signatory_name }}"></div>
+          </div>
+          <label>Adresse</label><input type="text" name="address" value="{{ company.address }}">
+          <label>Mention légale (bas de facture)</label><input type="text" name="document_stamp_legend" value="{{ company.document_stamp_legend }}">
+          <button class="btn-primary">Enregistrer la fiche</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 7 · Générer facture -->
+    <div class="subtab-panel">
+      <div class="content-card"><h3>🧾 Générer une facture</h3>
+        <p style="color:#A9BDB2;">Choisissez un contrat et une période ; la facture s'ouvre dans un nouvel onglet, prête à imprimer ou exporter en PDF.</p>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Contrat</th><th>Client</th><th>Jour</th><th>Mois</th><th>Année</th></tr></thead>
+          <tbody>{% for c in contracts %}<tr>
+            <td><strong>{{ c.id }}</strong> — {{ c.name }}</td><td>{{ c.client }}</td>
+            <td><a href="{% url 'invoice' c.id %}?period=jour" target="_blank" style="color:#F5B800;font-weight:700;">🧾 Jour</a></td>
+            <td><a href="{% url 'invoice' c.id %}?period=mois" target="_blank" style="color:#F5B800;font-weight:700;">🧾 Mois</a></td>
+            <td><a href="{% url 'invoice' c.id %}?period=annee" target="_blank" style="color:#F5B800;font-weight:700;">🧾 Année</a></td>
+          </tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

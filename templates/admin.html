@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Admin — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>⚙️ Administration</h1>
+  <p>Gestion des utilisateurs de {{ ge_tenant_name }}</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">ℹ️ {{ message }}</div>{% endif %}
+
+<div class="subtab-group" data-sg="adm">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('adm',0)">📋 Liste utilisateurs</button>
+    <button class="subtab-btn" onclick="geSubtab('adm',1)">➕ Ajouter</button>
+    <button class="subtab-btn" onclick="geSubtab('adm',2)">✏️ Modifier</button>
+    <button class="subtab-btn" onclick="geSubtab('adm',3)">🗑️ Supprimer</button>
+  </div>
+  <div class="subtab-panels">
+
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>📋 Utilisateurs ({{ total_users }})</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Dashboard</th><th>Finance</th><th>Maintenance</th><th>RH</th><th>Admin</th></tr></thead>
+          <tbody>{% for u in users %}<tr><td><strong>{{ u.user }}</strong></td><td>{{ u.role }}</td><td>{% if u.permissions.dashboard %}✅{% else %}❌{% endif %}</td><td>{% if u.permissions.finance %}✅{% else %}❌{% endif %}</td><td>{% if u.permissions.maintenance %}✅{% else %}❌{% endif %}</td><td>{% if u.permissions.rh %}✅{% else %}❌{% endif %}</td><td>{% if u.permissions.admin %}✅{% else %}❌{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        <p style="color:#A9BDB2;font-size:13px;margin-top:10px;">Répartition : {% for role, n in roles_count.items %}<span class="badge badge-other" style="margin-right:6px;">{{ role }} : {{ n }}</span>{% endfor %}</p>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:640px;"><h3>➕ Ajouter un utilisateur</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="add">
+          <label>Nom d'utilisateur</label><input type="text" name="username" required>
+          <label>Mot de passe</label><input type="text" name="password" required>
+          <label>Rôle</label><select name="role" id="add-role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;text-transform:none;"><input type="checkbox" name="custom_perms" id="cp" style="width:auto;min-height:auto;"> Personnaliser les permissions</label>
+          <div id="perm-box" style="display:none;"><div class="perm-checks">{% for key, label in perm_tabs %}<label style="display:flex;align-items:center;gap:6px;font-weight:500;text-transform:none;font-size:13px;"><input type="checkbox" name="perm_{{ key }}" style="width:auto;min-height:auto;"> {{ label }}</label>{% endfor %}</div></div>
+          <button class="btn-primary">Créer le compte</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:560px;"><h3>✏️ Modifier un utilisateur</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="edit">
+          <label>Utilisateur</label><select name="username">{% for u in users %}<option>{{ u.user }}</option>{% endfor %}</select>
+          <label>Nouveau mot de passe (vide = inchangé)</label><input type="text" name="password">
+          <label>Nouveau rôle (vide = inchangé)</label><select name="role"><option value="">— inchangé —</option>{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select>
+          <button class="btn-primary">Mettre à jour</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:560px;"><h3>🗑️ Supprimer un utilisateur</h3>
+        <form method="post" class="ge-form" onsubmit="return confirm('Supprimer cet utilisateur ?');">{% csrf_token %}<input type="hidden" name="action" value="delete">
+          <label>Utilisateur</label><select name="username">{% for u in users %}{% if u.user != 'admin' and u.user != 'gestionnaire' %}<option>{{ u.user }}</option>{% endif %}{% endfor %}</select>
+          <p style="color:#A9BDB2;font-size:13px;">Les comptes « admin » et « gestionnaire » sont protégés.</p>
+          <button class="btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block body_extra %}
+<script>
+  var cp = document.getElementById('cp'), box = document.getElementById('perm-box');
+  cp && cp.addEventListener('change', function () { box.style.display = cp.checked ? 'block' : 'none'; });
+</script>
+{% endblock %}

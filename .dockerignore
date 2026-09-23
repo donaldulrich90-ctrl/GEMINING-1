@@ -1,0 +1,15 @@
+# Ne pas embarquer données, caches et secrets dans l'image
+__pycache__/
+*.pyc
+.secret_key
+staticfiles/
+tenant_data/
+app_database.json
+geo_data.db
+*.corrupt.bak
+.venv/
+venv/
+.git/
+.gitignore
+*.log
+.DS_Store

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Validation Opérateur — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>✅ Validation opérateur</h1>
+  <p>Chargement → notification → déchargement</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+  <div class="dashboard-kpi {% if nb_pending %}kpi-border-warning{% else %}kpi-border-success{% endif %}">
+    <div class="kpi-lab">🔔 Ordres en attente</div><div class="kpi-val">{{ nb_pending }}</div>
+    <div class="kpi-sub">{% if nb_pending %}Déchargements à effectuer{% else %}Aucun ordre en attente{% endif %}</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-muted">
+    <div class="kpi-lab">📋 Historique</div><div class="kpi-val">{{ recent|length }}</div><div class="kpi-sub">Derniers mouvements</div>
+  </div>
+</div>
+
+<div class="actions-grid">
+  <div class="content-card">
+    <h3>📦 Opérateur de chargement — valider un chargement</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="load">
+      <label>Camion / engin</label><select name="truck" required>{% for t in trucks %}<option>{{ t }}</option>{% endfor %}</select>
+      <label>Type de matériau</label><select name="mineral_type">{% for m in mineral_types %}<option>{{ m }}</option>{% endfor %}</select>
+      <label>Teneur / grade</label><select name="grade">{% for g in grades %}<option>{{ g }}</option>{% endfor %}</select>
+      <label>Destination</label><input type="text" name="destination" placeholder="ROM PAD, WASTE DUMP…">
+      <button class="btn-primary">✅ Valider le chargement</button>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <h3>🚚 Opérateur de transport — ordres en attente</h3>
+    {% if pending %}
+    {% for n in pending %}
+    <div class="alert-box alert-warning" style="margin-bottom:10px;">
+      <div class="alert-title">🚚 {{ n.truck }} — {{ n.mineral_type }} ({{ n.grade }})</div>
+      <div style="font-size:13px;color:#A9BDB2;margin:4px 0;">{{ n.message }}{% if n.destination %} → {{ n.destination }}{% endif %}<br>Par {{ n.from_operator }} · {{ n.timestamp }}</div>
+      <form method="post" style="margin:0;">{% csrf_token %}<input type="hidden" name="action" value="ack"><input type="hidden" name="notif_id" value="{{ n.id }}"><button class="btn-primary" style="min-height:36px;margin:0;">Acquitter (« Je pars »)</button></form>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#A9BDB2;text-align:center;padding:30px;">📭 Aucun ordre de déchargement en attente.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="content-card">
+  <h3>📜 Historique des ordres</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr><th>Horodatage</th><th>Camion</th><th>Matériau</th><th>Grade</th><th>Destination</th><th>Par</th><th>Statut</th></tr></thead>
+      <tbody>
+        {% for n in recent %}
+        <tr>
+          <td>{{ n.timestamp }}</td><td><strong>{{ n.truck }}</strong></td><td>{{ n.mineral_type }}</td>
+          <td>{{ n.grade }}</td><td>{{ n.destination }}</td><td>{{ n.from_operator }}</td>
+          <td>{% if n.status == 'pending' %}<span class="badge badge-other">En attente</span>{% else %}<span class="badge badge-active">Acquitté</span>{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="7" style="text-align:center;color:#A9BDB2;">Aucun mouvement</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

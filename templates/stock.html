@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Stock — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>📦 Gestionnaire de stock</h1>
+  <p>Pièces de rechange — niveaux, entrées/sorties, seuils</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">📦 Références</div><div class="kpi-val">{{ nb_refs }}</div><div class="kpi-sub">Pièces suivies</div></div>
+  <div class="dashboard-kpi {% if nb_low %}kpi-border-warning{% else %}kpi-border-success{% endif %}"><div class="kpi-lab">⚠️ Stock critique</div><div class="kpi-val">{{ nb_low }}</div><div class="kpi-sub">{% if nb_low %}Réappro. nécessaire{% else %}Seuils OK{% endif %}</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">🔢 Unités totales</div><div class="kpi-val">{{ total_units|floatformat:0 }}</div><div class="kpi-sub">Toutes pièces</div></div>
+</div>
+
+<datalist id="parts-list">{% for p in catalog %}<option value="{{ p }}">{% endfor %}{% for p in known_parts %}<option value="{{ p }}">{% endfor %}</datalist>
+
+<div class="subtab-group" data-sg="stk">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('stk',0)">📊 État du stock</button>
+    {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('stk',1)">➕ Entrée stock</button>
+    <button class="subtab-btn" onclick="geSubtab('stk',2)">➖ Sortie stock</button>
+    <button class="subtab-btn" onclick="geSubtab('stk',3)">⚙️ Configuration</button>{% endif %}
+    <button class="subtab-btn" onclick="geSubtab('stk',{% if can_edit %}4{% else %}1{% endif %})">📜 Historique</button>
+  </div>
+  <div class="subtab-panels">
+
+    <div class="subtab-panel active">
+      <div class="content-card"><h3>📊 État du stock</h3>
+        {% if rows %}<div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Pièce</th><th>Quantité</th><th>Seuil min.</th><th>Unité</th><th>État</th></tr></thead>
+          <tbody>{% for r in rows %}<tr><td><strong>{{ r.nom }}</strong></td><td>{{ r.quantite|floatformat:0 }}</td><td>{{ r.seuil_min|floatformat:0 }}</td><td>{{ r.unite }}</td><td>{% if r.bas %}<span class="badge badge-panne">⚠️ Bas</span>{% else %}<span class="badge badge-active">OK</span>{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>{% else %}<p style="color:#A9BDB2;">Aucune pièce configurée. Utilisez « Configuration » ou « Entrée stock ».</p>{% endif %}
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:520px;"><h3>➕ Entrée stock</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="entry">
+          <label>Pièce</label><input list="parts-list" name="piece" required>
+          <label>Quantité</label><input type="number" name="quantite" min="1" step="1" required>
+          <label>Référence</label><input type="text" name="reference" placeholder="Bon de commande…">
+          <button class="btn-primary">Enregistrer l'entrée</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:520px;"><h3>➖ Sortie stock</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="exit">
+          <label>Pièce</label><select name="piece">{% for r in rows %}<option>{{ r.nom }}</option>{% endfor %}</select>
+          <label>Quantité</label><input type="number" name="quantite" min="1" step="1" required>
+          <label>Motif / référence</label><input type="text" name="reference" placeholder="Maintenance…">
+          <button class="btn-danger">Enregistrer la sortie</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:520px;"><h3>⚙️ Configurer une pièce</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="config">
+          <label>Pièce</label><input list="parts-list" name="piece" required>
+          <label>Quantité en stock</label><input type="number" name="quantite" min="0" step="1" value="0">
+          <label>Seuil minimum</label><input type="number" name="seuil_min" min="0" step="1" value="5">
+          <label>Unité</label><input type="text" name="unite" value="unité">
+          <button class="btn-primary">Définir</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="subtab-panel">
+      <div class="content-card"><h3>📜 Historique des mouvements</h3>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Date</th><th>Heure</th><th>Type</th><th>Pièce</th><th>Qté</th><th>Référence</th><th>Par</th></tr></thead>
+          <tbody>{% for m in movements %}<tr><td>{{ m.date }}</td><td>{{ m.heure }}</td><td>{% if m.type == 'ENTREE' %}<span class="badge badge-active">Entrée</span>{% else %}<span class="badge badge-other">Sortie</span>{% endif %}</td><td>{{ m.piece }}</td><td>{{ m.quantite|floatformat:0 }}</td><td>{{ m.reference }}</td><td>{{ m.par }}</td></tr>{% empty %}<tr><td colspan="7" style="text-align:center;color:#A9BDB2;">Aucun mouvement</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

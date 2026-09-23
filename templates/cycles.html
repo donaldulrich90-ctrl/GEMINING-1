@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Cycles — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🔄 Cycles &amp; performance</h1>
+  <p>Rendement de la flotte — tonnes/heure, cycles/heure, efficacité</p>
+</div>
+
+<div class="kpi-grid">
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">📊 Moyenne tonnes/heure</div>
+    <div class="kpi-val">{{ kpi.avg_tph }}</div>
+    <div class="kpi-sub">T/h sur la flotte</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-success">
+    <div class="kpi-lab">🏆 Meilleur engin</div>
+    <div class="kpi-val">{{ kpi.best_id }}</div>
+    <div class="kpi-sub">{{ kpi.best_tph }} T/h</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">📦 Production totale</div>
+    <div class="kpi-val">{{ kpi.total_prod }} t</div>
+    <div class="kpi-sub">Cumul flotte</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-muted">
+    <div class="kpi-lab">⚡ Cycles/heure moy.</div>
+    <div class="kpi-val">{{ kpi.avg_cph }}</div>
+    <div class="kpi-sub">cy/h</div>
+  </div>
+</div>
+
+<div class="content-card" style="margin-top:16px;">
+  <h3>🏭 Top 10 — performance (tonnes/heure)</h3>
+  <div class="chart-box" id="chart-perf"></div>
+</div>
+
+<div class="content-card">
+  <h3>📋 Classement des engins</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr>
+        <th>Rang</th><th>ID</th><th>Type</th><th>Opérateur</th><th>Statut</th>
+        <th>Cycles</th><th>Production (T)</th><th>Tps cycle (min)</th>
+        <th>H. Run Jour</th><th>Tonnes/h</th><th>Cycles/h</th><th>Efficacité</th>
+      </tr></thead>
+      <tbody>
+        {% for p in perf %}
+        <tr>
+          <td>{{ p.rang }}</td><td><strong>{{ p.id }}</strong></td><td>{{ p.type }}</td>
+          <td>{{ p.operateur }}</td>
+          <td>{% if p.statut == 'Active' %}<span class="badge badge-active">{{ p.statut }}</span>{% elif p.statut == 'Panne' %}<span class="badge badge-panne">{{ p.statut }}</span>{% else %}<span class="badge badge-other">{{ p.statut }}</span>{% endif %}</td>
+          <td>{{ p.cycles }}</td><td>{{ p.production }}</td><td>{{ p.tps_cycle }}</td>
+          <td>{{ p.h_jour }}</td><td>{{ p.tph }}</td><td>{{ p.cph }}</td><td>{{ p.eff }} %</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="12" style="text-align:center;color:#A9BDB2;">Aucune donnée</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="content-card">
+  <h3>👷 Performance des opérateurs</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead><tr>
+        <th>Rang</th><th>Nom</th><th>Matricule</th><th>Équipe</th>
+        <th>Machines</th><th>Nb</th><th>Cycles</th><th>Production (T)</th><th>Heures</th><th>Tonnes/h</th>
+      </tr></thead>
+      <tbody>
+        {% for o in op_perf %}
+        <tr>
+          <td>{{ o.rang }}</td><td><strong>{{ o.nom }}</strong></td><td>{{ o.matricule }}</td>
+          <td>{{ o.equipe }}</td><td style="font-size:12px;">{{ o.machines }}</td><td>{{ o.nb_machines }}</td>
+          <td>{{ o.cycles }}</td><td>{{ o.production }}</td><td>{{ o.heures }}</td><td>{{ o.tph }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" style="text-align:center;color:#A9BDB2;">Aucun opérateur actif</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block body_extra %}
+<script>const b = {{ bar_json }}; geBar('chart-perf', b.ids, b.values);</script>
+{% endblock %}

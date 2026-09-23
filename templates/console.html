@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Console plateforme — GOOD ENGINEERS OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Oswald:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+</head>
+<body>
+<div style="min-height:100vh;display:flex;flex-direction:column;">
+  <header style="background:linear-gradient(90deg,#063D2B,#0D2A20);border-bottom:2px solid rgba(245,184,0,.4);padding:16px clamp(16px,3vw,34px);display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 8px 26px rgba(0,0,0,.35);">
+    <div>
+      <h1 style="margin:0;color:#fff;font-size:clamp(18px,2vw,24px);">🛰️ Console plateforme SaaS</h1>
+      <p style="margin:2px 0 0;color:var(--ge-muted);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;">GOOD ENGINEERS OS — administration multi-entreprises</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="text-align:right;line-height:1.25;font-size:13px;"><div style="color:#fff;font-weight:700;">{{ me }}</div><div style="color:var(--ge-gold);font-size:12px;font-weight:600;">Gestionnaire</div></div>
+      <form method="post" action="{% url 'logout' %}" style="margin:0;">{% csrf_token %}<button class="ge-logout" type="submit">🚪 Déconnexion</button></form>
+    </div>
+  </header>
+
+  <main class="ge-content">
+    {% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">ℹ️ {{ message }}</div>{% endif %}
+
+    <div class="content-card">
+      <h3>🏢 Entreprises &amp; abonnements</h3>
+      <div style="overflow-x:auto;">
+        <table class="ge-table">
+          <thead><tr><th>Identifiant</th><th>Nom</th><th>Plan</th><th>Fin abonnement</th><th>RCCM</th><th>Contact</th><th>Comptes</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for t in tenants %}
+            <tr>
+              <td><strong>{{ t.id }}</strong></td><td>{{ t.name }}</td><td>{{ t.plan }}</td><td>{{ t.end }}</td>
+              <td>{{ t.rccm }}</td><td>{{ t.email }}</td><td>{{ t.users }}</td>
+              <td>{% if t.active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-panne">Suspendue</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <h3>➕ Nouveau client SaaS (entreprise + administrateur)</h3>
+      <form method="post" class="ge-form" style="max-width:900px;">
+        {% csrf_token %}<input type="hidden" name="action" value="create_client">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div><label>Nom de l'entreprise</label><input type="text" name="name" required></div>
+          <div><label>Identifiant (vide = auto)</label><input type="text" name="tid" placeholder="ex. vital-mining"></div>
+          <div><label>Plan</label><select name="plan"><option>free</option><option selected>standard</option><option>premium</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div><label>Fin d'abonnement</label><input type="date" name="subscription_end" value="{{ year_end }}"></div>
+          <div><label>Téléphone</label><input type="text" name="phone"></div>
+          <div><label>Email</label><input type="text" name="email"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label>N° fiscal / IFU</label><input type="text" name="tax_id"></div>
+          <div><label>RCCM</label><input type="text" name="rccm"></div>
+        </div>
+        <label>Adresse</label><input type="text" name="address">
+        <hr style="border-color:rgba(255,255,255,.08);">
+        <strong style="color:#F5B800;">Compte administrateur de l'entreprise</strong>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label>Identifiant admin</label><input type="text" name="admin_user" required></div>
+          <div><label>Mot de passe admin</label><input type="text" name="admin_pass" required></div>
+        </div>
+        <button class="btn-primary">Créer l'espace client + administrateur</button>
+      </form>
+    </div>
+
+    <div class="actions-grid">
+      <div class="content-card">
+        <h3>✏️ Modifier une entreprise</h3>
+        <form method="post" class="ge-form">
+          {% csrf_token %}<input type="hidden" name="action" value="update">
+          <label>Entreprise</label><select name="tid">{% for t in editable %}<option value="{{ t.id }}">{{ t.id }} — {{ t.name }}</option>{% endfor %}</select>
+          <label>Nouveau nom</label><input type="text" name="name">
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;"><label>Plan</label><select name="plan"><option value="">—</option><option>free</option><option>standard</option><option>premium</option></select></div>
+            <div style="flex:1;"><label>Fin abonnement</label><input type="date" name="subscription_end"></div>
+          </div>
+          <button class="btn-primary">Mettre à jour</button>
+        </form>
+      </div>
+      <div class="content-card">
+        <h3>⏯️ Activer / suspendre</h3>
+        <form method="post" class="ge-form">
+          {% csrf_token %}<input type="hidden" name="action" value="toggle_active">
+          <label>Entreprise</label><select name="tid">{% for t in tenants %}<option value="{{ t.id }}">{{ t.id }} — {% if t.active %}active{% else %}suspendue{% endif %}</option>{% endfor %}</select>
+          <button class="btn-primary">Basculer le statut</button>
+          <hr style="border-color:rgba(255,255,255,.08);">
+          <p style="color:#A9BDB2;font-size:13px;">Une entreprise suspendue ne peut plus être utilisée par ses comptes (message d'abonnement expiré).</p>
+        </form>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <h3>🗑️ Supprimer une entreprise</h3>
+      <p style="color:#A9BDB2;font-size:13px;">Action irréversible : retire l'entreprise, ses comptes et son dossier de données. L'espace « default » n'est pas supprimable.</p>
+      <form method="post" class="ge-form" style="max-width:560px;" onsubmit="return confirm('Supprimer définitivement cette entreprise et ses données ?');">
+        {% csrf_token %}<input type="hidden" name="action" value="delete">
+        <label>Entreprise à supprimer</label>
+        <select name="tid">{% for t in deletable %}<option value="{{ t.id }}">{{ t.id }} — {{ t.name }}</option>{% endfor %}</select>
+        <label>Confirmer en recopiant l'identifiant exact</label><input type="text" name="confirm" placeholder="identifiant exact" required>
+        <button class="btn-danger">Supprimer définitivement</button>
+      </form>
+    </div>
+  </main>
+</div>
+</body>
+</html>

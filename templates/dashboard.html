@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — GOOD ENGINEERS OS{% endblock %}
+{% block head_extra %}{% endblock %}
+
+{% block content %}
+<div class="dash-header">
+  <h1>🛰️ Centre de contrôle flotte</h1>
+  <p>KPI temps réel • {{ today_str }}</p>
+</div>
+
+{% with k=kpi %}
+<div class="kpi-grid">
+  <div class="dashboard-kpi {% if k.disponibilite >= 70 or k.total_machines == 0 %}kpi-border-success{% else %}kpi-border-warning{% endif %}">
+    <div class="kpi-lab">🚛 Flotte active</div>
+    <div class="kpi-val">{{ k.machines_actives }} / {{ k.total_machines }}</div>
+    <div class="kpi-sub">Disponibilité <span class="status-active">{{ k.disponibilite }}%</span>{% if k.idle_count %} • Arrêt {{ k.idle_count }}{% endif %}</div>
+  </div>
+
+  <div class="dashboard-kpi {% if k.machines_pannes > 0 %}kpi-border-danger{% else %}kpi-border-muted{% endif %}">
+    <div class="kpi-lab">🔧 Arrêt / panne</div>
+    <div class="kpi-val"><span class="{% if k.machines_pannes %}status-breakdown{% else %}status-idle{% endif %}">{{ k.machines_pannes }}</span></div>
+    <div class="kpi-sub">{% if k.machines_pannes > 0 %}⚠️ Intervention requise{% else %}OK — ligne opérationnelle{% endif %}</div>
+  </div>
+
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">⛏ Production cumulée</div>
+    <div class="kpi-val">{{ k.production_totale }} t</div>
+    <div class="kpi-sub">🔄 {{ k.cycles_totaux }} cycles • Shift {{ k.heures_jour }} h</div>
+  </div>
+
+  <div class="dashboard-kpi kpi-border-accent">
+    {% if k.fuel_avg is not None %}
+    <div class="kpi-lab">⛽ Niveau carburant (moy.)</div>
+    <div class="kpi-val"><span class="{% if k.fuel_avg >= 40 %}status-active{% elif k.fuel_avg >= 20 %}status-maintenance{% else %}status-breakdown{% endif %}">{{ k.fuel_avg }} %</span></div>
+    <div class="kpi-sub">Réservoirs flotte • Surveiller sous 25 %</div>
+    {% else %}
+    <div class="kpi-lab">⏱️ Heures shift (jour)</div>
+    <div class="kpi-val">{{ k.heures_jour }} h</div>
+    <div class="kpi-sub">Cumul total {{ k.total_heures }} h</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="kpi-grid" style="margin-top:14px;">
+  {% if k.revenu_jour > 0 %}
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">💰 Revenus (jour)</div>
+    <div class="kpi-val">${{ k.revenu_jour }}</div>
+    <div class="kpi-sub">Rentabilité cumul. ${{ k.rentabilite_totale }}</div>
+  </div>
+  {% else %}
+  <div class="dashboard-kpi kpi-border-muted">
+    <div class="kpi-lab">🔄 Cycles (volume)</div>
+    <div class="kpi-val">{{ k.cycles_totaux }}</div>
+    <div class="kpi-sub">🛰️ Temps cycle moy. {{ k.avg_cycle }} min</div>
+  </div>
+  {% endif %}
+
+  <div class="dashboard-kpi {% if k.nb_alertes > 0 %}kpi-border-warning{% else %}kpi-border-success{% endif %}">
+    <div class="kpi-lab">🔔 Maintenance ouverte</div>
+    <div class="kpi-val"><span class="{% if k.nb_alertes %}status-maintenance{% else %}status-idle{% endif %}">{{ k.nb_alertes }}</span></div>
+    <div class="kpi-sub">{% if k.nb_alertes %}Planifier interventions{% else %}Aucune alerte active{% endif %}</div>
+  </div>
+
+  <div class="dashboard-kpi {% if k.nb_stock_bas > 0 %}kpi-border-warning{% else %}kpi-border-success{% endif %}">
+    <div class="kpi-lab">📦 Stock critique</div>
+    <div class="kpi-val"><span class="{% if k.nb_stock_bas %}status-maintenance{% else %}status-active{% endif %}">{{ k.nb_stock_bas }}</span></div>
+    <div class="kpi-sub">{% if k.nb_stock_bas %}Réappro. nécessaire{% else %}Seuils OK{% endif %}</div>
+  </div>
+
+  <div class="dashboard-kpi kpi-border-muted">
+    <div class="kpi-lab">⚡ Perf. cycle</div>
+    <div class="kpi-val">{{ k.avg_cycle }} min</div>
+    <div class="kpi-sub">Moyenne flotte • objectif terrain</div>
+  </div>
+</div>
+{% endwith %}
+
+<div class="charts-grid" style="margin-top:18px;">
+  <div class="content-card">
+    <h3>📊 Répartition des statuts</h3>
+    <div class="chart-box" id="chart-status"></div>
+    <div class="chart-legend" id="legend-status"></div>
+  </div>
+  <div class="content-card">
+    <h3>📈 Production par machine</h3>
+    <div class="chart-box" id="chart-prod"></div>
+  </div>
+</div>
+
+{% if panne_machines or active_alerts or low_stock_items %}
+<div class="content-card">
+  <h3>🚨 Alertes &amp; actions requises</h3>
+  <div class="alerts-grid">
+    {% if panne_machines %}
+    <div class="alert-box alert-danger">
+      <div class="alert-title">🔴 {{ panne_machines|length }} machine(s) en panne</div>
+      <ul>{% for m in panne_machines %}<li>{{ m }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if active_alerts %}
+    <div class="alert-box alert-warning">
+      <div class="alert-title">⚠️ {{ kpi.nb_alertes }} maintenance(s) planifiée(s)</div>
+      <ul>{% for a in active_alerts %}<li>{{ a.machine_id }}: {{ a.maintenance_type }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if low_stock_items %}
+    <div class="alert-box alert-warning">
+      <div class="alert-title">📦 {{ kpi.nb_stock_bas }} pièce(s) en stock bas</div>
+      <ul>{% for item in low_stock_items %}<li>{{ item.nom }}: {{ item.quantite }} {{ item.unite }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <h3>📋 Vue d'ensemble de la flotte</h3>
+  <div style="overflow-x:auto;">
+    <table class="ge-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Type</th><th>Statut</th><th>Opérateur</th>
+          <th>Production (T)</th><th>Cycles</th><th>H. Run Jour</th>
+          <th>Prochaine PM</th><th>Carburant (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in fleet_table %}
+        <tr>
+          <td><strong>{{ m.id }}</strong></td>
+          <td>{{ m.type }}</td>
+          <td>
+            {% if m.statut == 'Active' %}<span class="badge badge-active">{{ m.statut }}</span>
+            {% elif m.statut == 'Panne' %}<span class="badge badge-panne">{{ m.statut }}</span>
+            {% else %}<span class="badge badge-other">{{ m.statut }}</span>{% endif %}
+          </td>
+          <td>{{ m.operateur }}</td>
+          <td>{{ m.production }}</td>
+          <td>{{ m.cycles }}</td>
+          <td>{{ m.h_jour }}</td>
+          <td>{{ m.pm }}</td>
+          <td>{{ m.carburant }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block body_extra %}
+<script>
+  const COLORS = { 'Active': '#28A745', 'Panne': '#DC3545', 'Maintenance': '#FF6B00', 'Idle': '#A9BDB2' };
+  geDonut('chart-status', {{ status_counts_json }}, COLORS, 'legend-status');
+  const prod = {{ prod_chart_json }};
+  geBar('chart-prod', prod.ids, prod.values);
+</script>
+{% endblock %}

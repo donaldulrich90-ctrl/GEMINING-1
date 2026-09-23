@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Carburant — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>⛽ Carburant &amp; forex</h1>
+  <p>Consommation, coûts et rentabilité — saisie multi-devise</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">⛽ Conso. jour parc</div>
+    <div class="kpi-val">{{ total_conso }} L</div>
+    <div class="kpi-sub">Estimé</div>
+  </div>
+  <div class="dashboard-kpi {% if total_renta >= 0 %}kpi-border-success{% else %}kpi-border-danger{% endif %}">
+    <div class="kpi-lab">💰 Rentabilité nette</div>
+    <div class="kpi-val">{{ total_renta }} $</div>
+    <div class="kpi-sub">En dollar</div>
+  </div>
+  <div class="dashboard-kpi kpi-border-accent">
+    <div class="kpi-lab">💱 Taux du jour (API)</div>
+    <div class="kpi-val" style="font-size:22px;">1 USD = {{ rates.CFA|floatformat:0 }} CFA</div>
+    <div class="kpi-sub">1 USD = {{ rates.EUR|floatformat:2 }} EUR</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px;" class="carb-grid">
+  <div class="content-card">
+    <h3>📋 Tableau de bord énergétique</h3>
+    <div style="overflow-x:auto;">
+      <table class="ge-table">
+        <thead><tr>
+          <th>ID</th><th>Type</th><th>Conso. voyage (L)</th><th>Conso. shift (L)</th>
+          <th>Conso. jour (L)</th><th>Conso. mois (L)</th>
+          <th>Rev. jour ($)</th><th>Coût fuel ($)</th><th>Rentabilité ($)</th>
+        </tr></thead>
+        <tbody>
+          {% for f in fuel_rows %}
+          <tr>
+            <td><strong>{{ f.id }}</strong></td><td>{{ f.type }}</td>
+            <td>{{ f.voyage }}</td><td>{{ f.shift }}</td><td>{{ f.jour }}</td><td>{{ f.mois }}</td>
+            <td>{{ f.rev }}</td><td>{{ f.cout }}</td>
+            <td style="font-weight:700;color:{% if f.renta >= 0 %}#2ecc71{% else %}#e74c3c{% endif %};">{{ f.renta }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" style="text-align:center;color:#A9BDB2;">Aucune machine</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <h3>➕ Saisie plein</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="fuel">
+      <label>Engin</label>
+      <select name="machine_id" required>
+        {% for id in machine_ids %}<option value="{{ id }}">{{ id }}</option>{% endfor %}
+      </select>
+      <label>Quantité (litres)</label>
+      <input type="number" name="litres" min="1" step="0.1" required>
+      <label>Devise</label>
+      <select name="devise" id="devise"><option>CFA</option><option>EUR</option><option>USD</option></select>
+      <label>Prix du litre</label>
+      <input type="number" name="prix" id="prix" step="0.01" value="600" required>
+      <button type="submit" class="btn-primary">Valider le plein</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block body_extra %}
+<script>
+  const dev = document.getElementById('devise'), prix = document.getElementById('prix');
+  dev && dev.addEventListener('change', () => { prix.value = dev.value === 'CFA' ? 600 : 1.5; });
+</script>
+{% endblock %}
