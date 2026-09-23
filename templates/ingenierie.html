@@ -18,6 +18,7 @@
     {% if can_edit %}<button class="subtab-btn" onclick="geSubtab('ing',1)">➕ Saisie de données</button>{% endif %}
     <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}2{% else %}1{% endif %})">🚜 État des engins</button>
     <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}3{% else %}2{% endif %})">📜 Historique</button>
+    <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}4{% else %}3{% endif %})">🛑 Pannes et arrêts</button>
   </div>
   <div class="subtab-panels">
 
@@ -29,6 +30,7 @@
           <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⏱️ Heures</div><div class="kpi-val">{{ tot.h|floatformat:1 }}</div><div class="kpi-sub">Σ heures saisies</div></div>
           <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">⛏ Tonnes</div><div class="kpi-val">{{ tot.prod|floatformat:0 }}</div><div class="kpi-sub">{{ tot.tph }} T/h</div></div>
           <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">⛽ Litres</div><div class="kpi-val">{{ tot.fuel|floatformat:0 }}</div><div class="kpi-sub">{{ tot.lpt }} L/t</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🛑 Arrêts</div><div class="kpi-val">{{ downtime.n }}</div><div class="kpi-sub">{{ downtime.h }} h d'impact</div></div>
         </div>
         {% if by_shift %}<table class="ge-table" style="margin-top:12px;"><thead><tr><th>Shift</th><th>Entrées</th><th>Heures</th><th>Production (T)</th><th>Carburant (L)</th><th>Cycles</th></tr></thead><tbody>{% for s in by_shift %}<tr><td><strong>{{ s.shift }}</strong></td><td>{{ s.n }}</td><td>{{ s.h|floatformat:1 }}</td><td>{{ s.prod|floatformat:0 }}</td><td>{{ s.fuel|floatformat:0 }}</td><td>{{ s.cyc|floatformat:1 }}</td></tr>{% endfor %}</tbody></table>{% endif %}
       </div>
@@ -68,6 +70,34 @@
     <div class="subtab-panel">
       <div class="content-card"><h3>📜 Historique des saisies</h3>
         <div style="overflow-x:auto;"><table class="ge-table"><thead><tr><th>Date</th><th>Engin</th><th>Shift</th><th>Heures</th><th>Production (T)</th><th>Carburant (L)</th><th>Cycles</th><th>Par</th></tr></thead><tbody>{% for r in history %}<tr><td>{{ r.entry_date }}</td><td><strong>{{ r.machine_id }}</strong></td><td>{{ r.shift }}</td><td>{{ r.hours_worked|floatformat:1 }}</td><td>{{ r.production_tonnes|floatformat:0 }}</td><td>{{ r.fuel_consumed|floatformat:0 }}</td><td>{{ r.cycles_added|floatformat:1 }}</td><td>{{ r.entered_by }}</td></tr>{% empty %}<tr><td colspan="8" style="text-align:center;color:#A9BDB2;">Aucune saisie</td></tr>{% endfor %}</tbody></table></div>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card"><h3>🛑 Pannes et arrêts — impact sur la production</h3>
+        <p style="color:#A9BDB2;margin-top:-4px;">Enregistrez les pannes et arrêts rencontrés par les engins, les heures d'impact, les détails, et les mesures prises pour le prochain shift.</p>
+        {% if can_edit %}
+        <form method="post" class="ge-form" style="max-width:960px;">{% csrf_token %}
+          <input type="hidden" name="action" value="incident">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;">
+            <div><label>Engin</label><select name="machine_id" required>{% for m in machines %}<option value="{{ m.id }}">{{ m.id }} — {{ m.model }} ({{ m.type }})</option>{% endfor %}</select></div>
+            <div><label>Shift</label><select name="shift"><option>Jour</option><option>Nuit</option></select></div>
+            <div><label>Date</label><input type="date" name="entry_date" value="{{ today }}"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;">
+            <div><label>Type</label><select name="incident_type"><option>Panne</option><option>Arrêt non programmé</option><option>Arrêt programmé</option><option>Attente (opérationnelle)</option><option>Autre</option></select></div>
+            <div><label>Heure début</label><input type="time" name="start_time"></div>
+            <div><label>Heure fin</label><input type="time" name="end_time"></div>
+            <div><label>Durée (h)</label><input type="number" name="duration_hours" step="0.1" value="0" placeholder="auto si heures"></div>
+          </div>
+          <div><label>Détails — ce qui a affecté la production</label><textarea name="production_impact" rows="3" placeholder="Ex : rupture de flexible hydraulique, excavatrice arrêtée 2 h, chargement stoppé…"></textarea></div>
+          <div><label>Mesures prises pour le prochain shift</label><textarea name="measures_next_shift" rows="3" placeholder="Ex : pièce commandée, engin de remplacement affecté, contrôle à faire en début de shift…"></textarea></div>
+          <button class="btn-primary">✅ Enregistrer la panne / l'arrêt</button>
+          <p style="color:#A9BDB2;font-size:13px;">Durée d'impact = heure fin − heure début (calcul automatique, gère le passage minuit) si la durée n'est pas saisie directement.</p>
+        </form>
+        {% endif %}
+        <h3 style="margin-top:18px;">📜 Historique des pannes et arrêts</h3>
+        <div style="overflow-x:auto;"><table class="ge-table"><thead><tr><th>Date</th><th>Engin</th><th>Shift</th><th>Type</th><th>Début</th><th>Fin</th><th>Durée (h)</th><th>Impact production</th><th>Mesures prochain shift</th><th>Par</th></tr></thead><tbody>{% for i in incidents %}<tr><td>{{ i.entry_date }}</td><td><strong>{{ i.machine_id }}</strong></td><td>{{ i.shift }}</td><td>{{ i.incident_type }}</td><td>{{ i.start_time }}</td><td>{{ i.end_time }}</td><td>{{ i.duration_hours|floatformat:1 }}</td><td>{{ i.production_impact }}</td><td>{{ i.measures_next_shift }}</td><td>{{ i.entered_by }}</td></tr>{% empty %}<tr><td colspan="10" style="text-align:center;color:#A9BDB2;">Aucune panne / arrêt enregistré</td></tr>{% endfor %}</tbody></table></div>
       </div>
     </div>
 

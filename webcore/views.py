@@ -704,21 +704,35 @@ def ingenierie_view(request):
     can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
 
     if request.method == "POST" and can_edit:
-        m = manager.get(request.POST.get("machine_id"))
-        if m:
-            def _f(name):
-                try:
-                    return float(request.POST.get(name, 0) or 0)
-                except (TypeError, ValueError):
-                    return 0
-            ok, message, computed = apply_manual_entry(
-                m, request.POST.get("shift", "Jour"),
+        def _f(name):
+            try:
+                return float(request.POST.get(name, 0) or 0)
+            except (TypeError, ValueError):
+                return 0
+        if request.POST.get("action", "") == "incident":
+            from core.engineering import save_shift_incident
+            ok, message, computed = save_shift_incident(
+                tid, request.POST.get("machine_id"),
                 request.POST.get("entry_date") or date.today().strftime("%Y-%m-%d"),
-                _f("h_debut"), _f("h_fin"), _f("production"), _f("fuel"),
-                request.POST.get("period", "Journalière"), _f("fuel_price") or 1.5,
-                request.ge_user.get("user", "Système"),
-                voyages=_f("voyages"), facteur=_f("facteur"))
+                request.POST.get("shift", "Jour"),
+                request.POST.get("incident_type", "Panne"),
+                request.POST.get("start_time", ""), request.POST.get("end_time", ""),
+                _f("duration_hours"),
+                request.POST.get("production_impact", ""),
+                request.POST.get("measures_next_shift", ""),
+                request.ge_user.get("user", "Système"))
             manager = FleetManager(tid)
+        else:
+            m = manager.get(request.POST.get("machine_id"))
+            if m:
+                ok, message, computed = apply_manual_entry(
+                    m, request.POST.get("shift", "Jour"),
+                    request.POST.get("entry_date") or date.today().strftime("%Y-%m-%d"),
+                    _f("h_debut"), _f("h_fin"), _f("production"), _f("fuel"),
+                    request.POST.get("period", "Journalière"), _f("fuel_price") or 1.5,
+                    request.ge_user.get("user", "Système"),
+                    voyages=_f("voyages"), facteur=_f("facteur"))
+                manager = FleetManager(tid)
 
     try:
         rep = datetime.strptime(request.GET.get("date", ""), "%Y-%m-%d").date()
@@ -726,12 +740,16 @@ def ingenierie_view(request):
         rep = date.today()
     by_shift, tot = get_daily_summary(tid, rep.strftime("%Y-%m-%d"))
     history = get_manual_entries_history(tid, limit=60)
+    from core.engineering import get_shift_incidents, get_incidents_daily_downtime
+    incidents = get_shift_incidents(tid, limit=60)
+    downtime = get_incidents_daily_downtime(tid, rep.strftime("%Y-%m-%d"))
     machines = [{"id": m.id, "model": m.model, "type": m.type, "engine_hours": int(m.engine_hours),
                  "production": int(m.production_tonnes), "cons_jour": int(m.cons_jour)}
                 for m in manager.machines]
     ctx = {"message": message, "computed": computed, "can_edit": can_edit,
            "machines": machines, "machine_ids": [m["id"] for m in machines],
            "by_shift": by_shift, "tot": tot, "history": history,
+           "incidents": incidents, "downtime": downtime,
            "report_date": rep.strftime("%Y-%m-%d"), "today": date.today().strftime("%Y-%m-%d")}
     return render(request, "ingenierie.html", ctx)
 

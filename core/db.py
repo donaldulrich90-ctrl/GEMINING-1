@@ -175,6 +175,37 @@ def _ensure_machines_extra_columns(conn) -> None:
         pass
 
 
+def _ensure_shift_incidents_table(conn) -> None:
+    """Crée la table des pannes/arrêts par shift (ingénierie) si absente.
+
+    Table dédiée au suivi ingénierie : distincte de `breakdowns` (maintenance).
+    Idempotent : exécuté à chaque connexion, y compris sur les bases existantes.
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS shift_incidents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                machine_id TEXT NOT NULL,
+                entry_date TEXT NOT NULL,
+                shift TEXT NOT NULL,
+                incident_type TEXT DEFAULT 'Panne',
+                start_time TEXT DEFAULT '',
+                end_time TEXT DEFAULT '',
+                duration_hours REAL DEFAULT 0,
+                production_impact TEXT DEFAULT '',
+                measures_next_shift TEXT DEFAULT '',
+                entered_by TEXT DEFAULT 'Syst\u00e8me',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_incident_machine ON shift_incidents(machine_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_incident_date ON shift_incidents(entry_date)")
+    except Exception:
+        pass
+
+
 @contextmanager
 def get_connection(tenant_id: str):
     """Connexion SQLite du tenant. Crée le fichier + le schéma si absent."""
@@ -192,6 +223,7 @@ def get_connection(tenant_id: str):
     except Exception:
         pass
     _ensure_machines_extra_columns(conn)
+    _ensure_shift_incidents_table(conn)
     try:
         yield conn
         conn.commit()

@@ -177,3 +177,82 @@ def get_period_report(tenant_id, start, end):
     tot["tph"] = round(tot["prod"] / tot["h"], 2) if tot["h"] > 0 else 0
     tot["lpt"] = round(tot["fuel"] / tot["prod"], 3) if tot["prod"] > 0 else 0
     return rows, tot
+
+
+# ---------------------------------------------------------------------------
+# Pannes & arrêts par shift (suivi ingénierie)
+# ---------------------------------------------------------------------------
+
+def _incident_duration(start_time, end_time, duration_hours):
+    """Durée d'impact en heures. Priorité à la valeur saisie ; sinon calcul HH:MM.
+
+    Gère le passage minuit (shift de nuit) : si fin < début, on ajoute 24 h.
+    """
+    try:
+        if duration_hours and float(duration_hours) > 0:
+            return round(float(duration_hours), 2)
+    except (TypeError, ValueError):
+        pass
+    from datetime import datetime
+    try:
+        t1 = datetime.strptime((start_time or "").strip(), "%H:%M")
+        t2 = datetime.strptime((end_time or "").strip(), "%H:%M")
+        diff = (t2 - t1).total_seconds() / 3600.0
+        if diff < 0:
+            diff += 24
+        return round(diff, 2)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def save_shift_incident(tenant_id, machine_id, entry_date, shift, incident_type,
+                        start_time, end_time, duration_hours,
+                        production_impact, measures_next_shift, entered_by):
+    """Enregistre une panne / un arrêt survenu pendant un shift.
+
+    Retourne (ok, message, computed). `computed` contient la durée retenue.
+    """
+    if not machine_id:
+        return False, "S\u00e9lectionnez un engin.", None
+    dur = _incident_duration(start_time, end_time, duration_hours)
+    impact = (production_impact or "").strip()
+    if dur == 0 and not impact:
+        return False, "Indiquez au moins la dur\u00e9e (ou les heures d\u00e9but/fin) et les d\u00e9tails de l'impact.", None
+    with get_connection(tenant_id) as conn:
+        conn.execute("""
+            INSERT INTO shift_incidents (
+                machine_id, entry_date, shift, incident_type, start_time, end_time,
+                duration_hours, production_impact, measures_next_shift, entered_by
+            ) VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (machine_id, entry_date, shift, incident_type or "Panne",
+              (start_time or "").strip(), (end_time or "").strip(), dur, impact,
+              (measures_next_shift or "").strip(), entered_by))
+    return True, f"Panne/arr\u00eat enregistr\u00e9 pour {machine_id} ({shift}) \u2014 {dur} h d'impact.", {"duration_hours": dur}
+
+
+def get_shift_incidents(tenant_id, machine_id=None, day=None, shift=None, limit=100):
+    """Historique des pannes/arrêts, du plus récent au plus ancien."""
+    with get_connection(tenant_id) as conn:
+        cur = conn.cursor()
+        q = "SELECT * FROM shift_incidents WHERE 1=1"
+        p = []
+        if machine_id:
+            q += " AND machine_id = ?"; p.append(machine_id)
+        if day:
+            q += " AND entry_date = ?"; p.append(day)
+        if shift and shift != "Tous":
+            q += " AND shift = ?"; p.append(shift)
+        q += " ORDER BY entry_date DESC, created_at DESC LIMIT ?"; p.append(limit)
+        cur.execute(q, p)
+        return [dict(r) for r in cur.fetchall()]
+
+
+def get_incidents_daily_downtime(tenant_id, day_str):
+    """Synthèse des arrêts d'un jour : nombre d'incidents + heures d'impact cumulées."""
+    with get_connection(tenant_id) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) n, COALESCE(SUM(duration_hours),0) h FROM shift_incidents WHERE entry_date = ?",
+            (day_str,))
+        r = cur.fetchone()
+        return {"n": r["n"], "h": round(r["h"], 1)}
