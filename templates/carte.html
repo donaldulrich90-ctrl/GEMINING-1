@@ -52,8 +52,8 @@
   }
   try {
     const map = L.map('map').setView([center.lat, center.lon], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap contributors, © CARTO' }).addTo(map);
     machines.forEach(m => {
       const col = COLORS[m.statut] || '#A9BDB2';
       L.circleMarker([m.lat, m.lon], { radius: 10, color: '#fff', weight: 2, fillColor: col, fillOpacity: 0.9 })
