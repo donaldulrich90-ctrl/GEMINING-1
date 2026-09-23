@@ -206,6 +206,37 @@ def _ensure_shift_incidents_table(conn) -> None:
         pass
 
 
+def _ensure_availability_factors_table(conn) -> None:
+    """Crée la table des facteurs de disponibilité (ingénierie) si absente.
+
+    Facteurs saisis par l'ingénieur, par engin et par période :
+    heures de référence (planifiées), cible de disponibilité, facteurs
+    d'utilisation et de charge. Idempotent (exécuté à chaque connexion).
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS availability_factors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                machine_id TEXT NOT NULL,
+                period_start TEXT NOT NULL,
+                period_end TEXT NOT NULL,
+                reference_hours REAL DEFAULT 0,
+                target_availability REAL DEFAULT 0,
+                utilization_factor REAL DEFAULT 0,
+                load_factor REAL DEFAULT 0,
+                notes TEXT DEFAULT '',
+                entered_by TEXT DEFAULT 'Syst\u00e8me',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avfactors_machine ON availability_factors(machine_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avfactors_period ON availability_factors(period_start, period_end)")
+    except Exception:
+        pass
+
+
 @contextmanager
 def get_connection(tenant_id: str):
     """Connexion SQLite du tenant. Crée le fichier + le schéma si absent."""
@@ -224,6 +255,7 @@ def get_connection(tenant_id: str):
         pass
     _ensure_machines_extra_columns(conn)
     _ensure_shift_incidents_table(conn)
+    _ensure_availability_factors_table(conn)
     try:
         yield conn
         conn.commit()

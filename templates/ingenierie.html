@@ -19,6 +19,7 @@
     <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}2{% else %}1{% endif %})">🚜 État des engins</button>
     <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}3{% else %}2{% endif %})">📜 Historique</button>
     <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}4{% else %}3{% endif %})">🛑 Pannes et arrêts</button>
+    <button class="subtab-btn" onclick="geSubtab('ing',{% if can_edit %}5{% else %}4{% endif %})">📊 Disponibilité</button>
   </div>
   <div class="subtab-panels">
 
@@ -101,6 +102,47 @@
       </div>
     </div>
 
+    <div class="subtab-panel">
+      <div class="content-card"><h3>📊 Disponibilité des engins</h3>
+        <p style="color:#A9BDB2;margin-top:-4px;">Disponibilité mécanique = (heures de référence − heures d'arrêt) ÷ heures de référence. Rassemble Maintenance, planning et arrêts.</p>
+        <form method="get" class="ge-form" style="flex-direction:row;align-items:end;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+          <div><label>Du</label><input type="date" name="av_start" value="{{ av_start }}"></div>
+          <div><label>Au</label><input type="date" name="av_end" value="{{ av_end }}"></div>
+          <button class="btn-primary" style="margin:0;">Afficher</button>
+        </form>
+        <div class="kpi-grid">
+          <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">📊 Dispo. moyenne</div><div class="kpi-val">{% if avail_tot.dispo != None %}{{ avail_tot.dispo }}%{% else %}—{% endif %}</div><div class="kpi-sub">{{ avail_tot.engins }} engins</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🕒 Heures réf.</div><div class="kpi-val">{{ avail_tot.ref|floatformat:0 }}</div><div class="kpi-sub">planifiées</div></div>
+          <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">🛑 Arrêts</div><div class="kpi-val">{{ avail_tot.dt|floatformat:0 }}</div><div class="kpi-sub">h d'arrêt</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⏱️ Travaillées</div><div class="kpi-val">{{ avail_tot.worked|floatformat:0 }}</div><div class="kpi-sub">h de marche</div></div>
+        </div>
+        {% if can_edit %}
+        <form method="post" class="ge-form" style="max-width:960px;margin-top:14px;">{% csrf_token %}
+          <input type="hidden" name="action" value="factors">
+          <strong style="color:#F5B800;font-size:13px;">➕ Saisir les facteurs d'un engin</strong>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;">
+            <div><label>Engin</label><select name="machine_id" required>{% for m in machines %}<option value="{{ m.id }}">{{ m.id }} — {{ m.model }}</option>{% endfor %}</select></div>
+            <div><label>Période du</label><input type="date" name="period_start" value="{{ av_start }}"></div>
+            <div><label>au</label><input type="date" name="period_end" value="{{ av_end }}"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+            <div><label>Heures de référence</label><input type="number" name="reference_hours" step="0.1" value="0"></div>
+            <div><label>Cible dispo. (%)</label><input type="number" name="target_availability" step="0.1" value="0"></div>
+            <div><label>Facteur utilisation</label><input type="number" name="utilization_factor" step="0.01" value="0"></div>
+            <div><label>Facteur de charge</label><input type="number" name="load_factor" step="0.01" value="0"></div>
+          </div>
+          <div><label>Note (optionnel)</label><input type="text" name="notes" placeholder="Ex : base 24 h/j × jours ouvrés"></div>
+          <button class="btn-primary">✅ Enregistrer les facteurs</button>
+          <p style="color:#A9BDB2;font-size:13px;">Les heures de référence servent de base au calcul. Les facteurs s'appliquent à l'engin pour la période saisie.</p>
+        </form>
+        {% endif %}
+        <h3 style="margin-top:18px;">Disponibilité par engin — {{ av_start }} → {{ av_end }}</h3>
+        <div style="overflow-x:auto;"><table class="ge-table"><thead><tr><th>Engin</th><th>Réf. (h)</th><th>Arrêts (h)</th><th>Travaillées (h)</th><th>Disponibilité</th><th>Cible</th><th>Écart</th><th>Fact. util.</th><th>Fact. charge</th><th>Maint.</th><th>Pannes</th><th>Proch. maint.</th></tr></thead><tbody>{% for a in avail %}<tr><td><strong>{{ a.machine_id }}</strong><br><span style="color:#A9BDB2;font-size:11px;">{{ a.model }}</span></td><td>{% if a.has_factors %}{{ a.reference_hours|floatformat:1 }}{% else %}<span style="color:#A9BDB2;">—</span>{% endif %}</td><td>{{ a.downtime_hours|floatformat:1 }}</td><td>{{ a.worked_hours|floatformat:1 }}</td><td>{% if a.dispo != None %}<strong>{{ a.dispo }}%</strong>{% else %}<span style="color:#A9BDB2;">à définir</span>{% endif %}</td><td>{% if a.target %}{{ a.target }}%{% else %}—{% endif %}</td><td>{% if a.ecart != None %}<span class="{% if a.ecart >= 0 %}status-active{% else %}status-breakdown{% endif %}">{{ a.ecart }}</span>{% else %}—{% endif %}</td><td>{{ a.utilization_factor }}</td><td>{{ a.load_factor }}</td><td>{{ a.maintenances }}</td><td>{{ a.pannes }}</td><td>{{ a.next_maintenance }}</td></tr>{% empty %}<tr><td colspan="12" style="text-align:center;color:#A9BDB2;">Aucun engin</td></tr>{% endfor %}</tbody></table></div>
+        <p style="color:#A9BDB2;font-size:12px;margin-top:8px;">« à définir » = saisissez les heures de référence (facteurs) pour calculer la disponibilité. Arrêts = pannes + arrêts de l'onglet « Pannes et arrêts ». Maint./Pannes = évènements Maintenance sur la période.</p>
+      </div>
+    </div>
+
   </div>
 </div>
+{% if av_active %}<script>document.addEventListener("DOMContentLoaded",function(){ if(typeof geSubtab==="function"){ geSubtab("ing", {{ dispo_idx }}); } });</script>{% endif %}
 {% endblock %}

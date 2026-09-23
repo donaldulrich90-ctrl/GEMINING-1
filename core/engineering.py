@@ -256,3 +256,120 @@ def get_incidents_daily_downtime(tenant_id, day_str):
             (day_str,))
         r = cur.fetchone()
         return {"n": r["n"], "h": round(r["h"], 1)}
+
+
+# ---------------------------------------------------------------------------
+# Disponibilité des engins (ingénierie) — facteurs + jonction Maintenance/Planning
+# ---------------------------------------------------------------------------
+
+def save_availability_factors(tenant_id, machine_id, period_start, period_end,
+                              reference_hours, target_availability,
+                              utilization_factor, load_factor, notes, entered_by):
+    """Enregistre (ou met à jour) les facteurs saisis par l'ingénieur pour un
+    engin sur une période : heures de référence (planifiées), cible de
+    disponibilité (%), facteur d'utilisation, facteur de charge.
+    """
+    if not machine_id:
+        return False, "S\u00e9lectionnez un engin.", None
+    if not period_start or not period_end:
+        return False, "Indiquez la p\u00e9riode (d\u00e9but et fin).", None
+    with get_connection(tenant_id) as conn:
+        cur = conn.cursor()
+        cur.execute("""SELECT id FROM availability_factors
+                       WHERE machine_id=? AND period_start=? AND period_end=?""",
+                    (machine_id, period_start, period_end))
+        row = cur.fetchone()
+        if row:
+            conn.execute("""UPDATE availability_factors SET reference_hours=?,
+                            target_availability=?, utilization_factor=?, load_factor=?,
+                            notes=?, entered_by=? WHERE id=?""",
+                         (reference_hours, target_availability, utilization_factor,
+                          load_factor, notes, entered_by, row["id"]))
+        else:
+            conn.execute("""INSERT INTO availability_factors (
+                            machine_id, period_start, period_end, reference_hours,
+                            target_availability, utilization_factor, load_factor,
+                            notes, entered_by
+                        ) VALUES (?,?,?,?,?,?,?,?,?)""",
+                         (machine_id, period_start, period_end, reference_hours,
+                          target_availability, utilization_factor, load_factor,
+                          notes, entered_by))
+    return True, f"Facteurs enregistr\u00e9s pour {machine_id} ({period_start} \u2192 {period_end}).", None
+
+
+def get_availability_report(tenant_id, start, end):
+    """Disponibilité mécanique par engin sur [start, end], en rassemblant :
+
+      - heures d'arrêt (pannes + arrêts) depuis shift_incidents,
+      - heures travaillées depuis manual_entries,
+      - nb de maintenances (maintenance_logs) et de pannes (breakdowns),
+      - prochaine maintenance planifiée (machines.next_maintenance),
+      - facteurs saisis par l'ingénieur (heures de référence, cible, utilisation, charge).
+
+    Disponibilité = (heures de référence − heures d'arrêt) / heures de référence × 100.
+    Retourne (lignes_par_engin, totaux).
+    """
+    with get_connection(tenant_id) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, model, type, status, next_maintenance FROM machines ORDER BY id")
+        machines = [dict(r) for r in cur.fetchall()]
+
+        cur.execute("""SELECT machine_id, COALESCE(SUM(duration_hours),0) dt, COUNT(*) n
+                       FROM shift_incidents WHERE entry_date>=? AND entry_date<=?
+                       GROUP BY machine_id""", (start, end))
+        downtime = {r["machine_id"]: (r["dt"], r["n"]) for r in cur.fetchall()}
+
+        cur.execute("""SELECT machine_id, COALESCE(SUM(hours_worked),0) h
+                       FROM manual_entries WHERE entry_date>=? AND entry_date<=?
+                       GROUP BY machine_id""", (start, end))
+        worked = {r["machine_id"]: r["h"] for r in cur.fetchall()}
+
+        cur.execute("""SELECT machine_id, COUNT(*) n FROM maintenance_logs
+                       WHERE date_maintenance>=? AND date_maintenance<=?
+                       GROUP BY machine_id""", (start, end))
+        maint = {r["machine_id"]: r["n"] for r in cur.fetchall()}
+
+        cur.execute("""SELECT machine_id, COUNT(*) n FROM breakdowns
+                       WHERE date(created_at)>=? AND date(created_at)<=?
+                       GROUP BY machine_id""", (start, end))
+        pannes = {r["machine_id"]: r["n"] for r in cur.fetchall()}
+
+        cur.execute("""SELECT * FROM availability_factors
+                       WHERE period_start<=? AND period_end>=?
+                       ORDER BY created_at DESC""", (end, start))
+        factors = {}
+        for r in cur.fetchall():
+            factors.setdefault(r["machine_id"], dict(r))
+
+    rows = []
+    sum_ref = sum_dt = sum_worked = 0.0
+    for m in machines:
+        mid = m["id"]
+        dt, n_inc = downtime.get(mid, (0.0, 0))
+        wk = worked.get(mid, 0.0)
+        f = factors.get(mid)
+        ref = float(f["reference_hours"]) if f else 0.0
+        target = float(f["target_availability"]) if f else 0.0
+        util = float(f["utilization_factor"]) if f else 0.0
+        load = float(f["load_factor"]) if f else 0.0
+        dispo = None
+        if ref > 0:
+            dispo = max(0.0, round((ref - dt) / ref * 100, 1))
+        ecart = round(dispo - target, 1) if (dispo is not None and target > 0) else None
+        sum_ref += ref; sum_dt += dt; sum_worked += wk
+        rows.append({
+            "machine_id": mid, "model": m["model"], "type": m["type"],
+            "status": m["status"], "next_maintenance": m["next_maintenance"] or "",
+            "reference_hours": round(ref, 1), "downtime_hours": round(dt, 1),
+            "incidents": n_inc, "worked_hours": round(wk, 1),
+            "dispo": dispo, "target": round(target, 1) if target else 0,
+            "ecart": ecart, "utilization_factor": util, "load_factor": load,
+            "maintenances": maint.get(mid, 0), "pannes": pannes.get(mid, 0),
+            "has_factors": bool(f),
+        })
+    tot = {
+        "ref": round(sum_ref, 1), "dt": round(sum_dt, 1), "worked": round(sum_worked, 1),
+        "engins": len(rows),
+        "dispo": round((sum_ref - sum_dt) / sum_ref * 100, 1) if sum_ref > 0 else None,
+    }
+    return rows, tot

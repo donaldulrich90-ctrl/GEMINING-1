@@ -709,7 +709,15 @@ def ingenierie_view(request):
                 return float(request.POST.get(name, 0) or 0)
             except (TypeError, ValueError):
                 return 0
-        if request.POST.get("action", "") == "incident":
+        if request.POST.get("action", "") == "factors":
+            from core.engineering import save_availability_factors
+            ok, message, computed = save_availability_factors(
+                tid, request.POST.get("machine_id"),
+                request.POST.get("period_start", ""), request.POST.get("period_end", ""),
+                _f("reference_hours"), _f("target_availability"),
+                _f("utilization_factor"), _f("load_factor"),
+                request.POST.get("notes", ""), request.ge_user.get("user", "Système"))
+        elif request.POST.get("action", "") == "incident":
             from core.engineering import save_shift_incident
             ok, message, computed = save_shift_incident(
                 tid, request.POST.get("machine_id"),
@@ -743,6 +751,18 @@ def ingenierie_view(request):
     from core.engineering import get_shift_incidents, get_incidents_daily_downtime
     incidents = get_shift_incidents(tid, limit=60)
     downtime = get_incidents_daily_downtime(tid, rep.strftime("%Y-%m-%d"))
+    from core.engineering import get_availability_report
+    try:
+        av_end = datetime.strptime(request.GET.get("av_end", ""), "%Y-%m-%d").date()
+    except ValueError:
+        av_end = date.today()
+    try:
+        av_start = datetime.strptime(request.GET.get("av_start", ""), "%Y-%m-%d").date()
+    except ValueError:
+        av_start = av_end.replace(day=1)
+    avail, avail_tot = get_availability_report(tid, av_start.strftime("%Y-%m-%d"), av_end.strftime("%Y-%m-%d"))
+    av_active = bool(request.GET.get("av_start")) or (request.method == "POST" and request.POST.get("action") == "factors")
+    dispo_idx = 5 if can_edit else 4
     machines = [{"id": m.id, "model": m.model, "type": m.type, "engine_hours": int(m.engine_hours),
                  "production": int(m.production_tonnes), "cons_jour": int(m.cons_jour)}
                 for m in manager.machines]
@@ -750,6 +770,8 @@ def ingenierie_view(request):
            "machines": machines, "machine_ids": [m["id"] for m in machines],
            "by_shift": by_shift, "tot": tot, "history": history,
            "incidents": incidents, "downtime": downtime,
+           "avail": avail, "avail_tot": avail_tot, "av_active": av_active, "dispo_idx": dispo_idx,
+           "av_start": av_start.strftime("%Y-%m-%d"), "av_end": av_end.strftime("%Y-%m-%d"),
            "report_date": rep.strftime("%Y-%m-%d"), "today": date.today().strftime("%Y-%m-%d")}
     return render(request, "ingenierie.html", ctx)
 
