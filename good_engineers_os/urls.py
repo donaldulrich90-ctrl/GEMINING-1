@@ -2,11 +2,17 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from webcore import views
+from webcore import ge_sso_views, ge_service_views
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
+
+    # Portail GOOD ENGINEERS : connexion unique et API de métriques.
+    path("sso/", ge_sso_views.sso_login, name="sso"),
+    path("api/service/metrics/", ge_service_views.metrics, name="svc_metrics"),
+    path("api/service/module-state/", ge_service_views.module_state, name="svc_module_state"),
     path("console/", views.console_view, name="console"),
     path("assistant/ask/", views.assistant_ask, name="assistant_ask"),
     path("assistant/teach/", views.assistant_teach, name="assistant_teach"),
