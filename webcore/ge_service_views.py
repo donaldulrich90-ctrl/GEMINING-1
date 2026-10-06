@@ -23,6 +23,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from core import storage
+from core.auth import get_user_manager
 from core.engineering import get_period_report
 
 SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "")
@@ -91,3 +92,30 @@ def module_state(request):
 
     storage.set_tenant_active(tenant, active)
     return JsonResponse({"ok": True, "tenant": tenant, "active": active})
+
+
+@csrf_exempt
+def create_user(request):
+    """Crée (ou met à jour) un compte Mine, piloté par le portail."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST requis"}, status=405)
+    try:
+        body = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"error": "JSON invalide"}, status=400)
+
+    tenant = storage.safe_tenant_id(body.get("tenant") or "default")
+    username = (body.get("username") or "").strip()
+    password = body.get("password") or ""
+    role = body.get("role") or "Invite"
+    if not username or not password:
+        return JsonResponse({"error": "username et password requis"}, status=400)
+
+    mgr = get_user_manager()
+    if mgr.get_user(username):
+        mgr.update_user(username, password=password, role=role)
+        return JsonResponse({"ok": True, "updated": True, "username": username})
+    mgr.add_user(username, password, role, tenant_id=tenant)
+    return JsonResponse({"ok": True, "created": True, "username": username})

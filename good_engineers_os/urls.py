@@ -13,6 +13,7 @@ urlpatterns = [
     path("sso/", ge_sso_views.sso_login, name="sso"),
     path("api/service/metrics/", ge_service_views.metrics, name="svc_metrics"),
     path("api/service/module-state/", ge_service_views.module_state, name="svc_module_state"),
+    path("api/service/user/", ge_service_views.create_user, name="svc_create_user"),
     path("console/", views.console_view, name="console"),
     path("assistant/ask/", views.assistant_ask, name="assistant_ask"),
     path("assistant/teach/", views.assistant_teach, name="assistant_teach"),
