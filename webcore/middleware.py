@@ -11,7 +11,7 @@ from django.urls import reverse
 from core import storage
 
 # Chemins accessibles sans authentification
-_PUBLIC_PREFIXES = ("/login", "/static", "/favicon.ico")
+_PUBLIC_PREFIXES = ("/login", "/sso", "/api/service", "/static", "/favicon.ico")
 
 
 class AuthTenantMiddleware:

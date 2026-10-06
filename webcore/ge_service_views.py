@@ -1,0 +1,168 @@
+"""ADAPTATEUR MINE (GEMINING-1) — API de service pour le portail.
+
+Routes publiques pour le middleware (préfixe /api/service dans
+_PUBLIC_PREFIXES) ; la sécurité est assurée par la clé de service
+SERVICE_API_KEY (en-tête X-Service-Key) :
+
+  GET  /api/service/metrics/?tenant=..&start=YYYY-MM-DD&end=YYYY-MM-DD
+       -> métriques mine de l'entreprise sur la période (réutilise
+          core.engineering.get_period_report).
+  POST /api/service/module-state/   { tenant, active }
+       -> active / désactive le tenant (case « module Mine » du portail).
+  POST /api/service/user/           { tenant, username, password, role }
+       -> crée le compte, ou le met à jour s'il appartient DÉJÀ à ce tenant.
+          Un identifiant pris par un autre tenant ou par le compte plateforme
+          est refusé (409) : jamais d'écrasement. Rôle « Gestionnaire » interdit.
+"""
+import hmac
+import json
+import logging
+import os
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+from core import storage
+from core.auth import DEFAULT_PERMISSIONS, get_user_manager
+from core.engineering import get_period_report
+
+log = logging.getLogger(__name__)
+
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "")
+
+# Rôles qu'un client peut recevoir (le rôle plateforme est exclu).
+ROLES_CLIENT = [r for r in DEFAULT_PERMISSIONS if r != "Gestionnaire"]
+
+
+def _cle_ok(request):
+    given = request.headers.get("X-Service-Key", "")
+    return bool(SERVICE_API_KEY) and hmac.compare_digest(given.encode(), SERVICE_API_KEY.encode())
+
+
+def _tenant_existe(tenant):
+    return tenant == "default" or tenant in storage.get_tenants_registry()
+
+
+def _inconnu(tenant):
+    return JsonResponse({"error": f"Tenant Mine « {tenant} » introuvable"}, status=404)
+
+
+def metrics(request):
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    tenant = storage.safe_tenant_id(request.GET.get("tenant") or "default")
+    start = request.GET.get("start", "")
+    end = request.GET.get("end", "")
+    if not start or not end:
+        return JsonResponse({"error": "start et end requis"}, status=400)
+    if not _tenant_existe(tenant):
+        # Sinon get_connection créerait une base vide pour un tenant mal saisi.
+        return _inconnu(tenant)
+
+    try:
+        rows, tot = get_period_report(tenant, start, end)
+    except Exception as e:  # noqa: BLE001
+        log.exception("metrics Mine KO pour %s", tenant)
+        return JsonResponse({"error": f"lecture des données impossible : {e}"}, status=500)
+
+    par_engin = [{
+        "engin": r.get("machine_id"),
+        "production": round(r.get("prod", 0), 1),
+        "heures": round(r.get("h", 0), 1),
+        "carburant": round(r.get("fuel", 0), 1),
+        "cycles": int(r.get("cyc", 0)),
+        "tph": r.get("tph", 0),
+        "lpt": r.get("lpt", 0),
+    } for r in rows]
+
+    # Effectif actif, lu directement dans staff.json. On n'instancie pas
+    # StaffManager : sans fichier, il créerait du personnel de démonstration
+    # chez le client (un rapport ne doit rien écrire).
+    effectif = 0
+    try:
+        raw = storage.load_tenant_json(tenant, "staff.json", None) or []
+        effectif = sum(1 for d in raw if isinstance(d, dict) and d.get("statut") == "Actif")
+    except Exception:  # noqa: BLE001
+        pass
+
+    return JsonResponse({
+        "module": "mine",
+        "periode": {"start": start, "end": end},
+        "par_engin": par_engin,
+        "production_total": tot.get("prod", 0),
+        "carburant_litres": tot.get("fuel", 0),
+        # Le coût d'exploitation détaillé vit dans le module finance ; on le
+        # laisse à 0 ici pour rester léger (à relier plus tard si besoin).
+        "cout_total": 0,
+        "effectif": effectif,
+    })
+
+
+def _json_body(request):
+    try:
+        body = json.loads(request.body or b"{}")
+    except ValueError:
+        return None
+    return body if isinstance(body, dict) else None
+
+
+@csrf_exempt
+def module_state(request):
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST requis"}, status=405)
+    body = _json_body(request)
+    if body is None:
+        return JsonResponse({"error": "JSON invalide"}, status=400)
+
+    tenant = storage.safe_tenant_id(body.get("tenant") or "") if body.get("tenant") else ""
+    active = bool(body.get("active"))
+    if not tenant:
+        return JsonResponse({"error": "tenant requis"}, status=400)
+    if not _tenant_existe(tenant):
+        return _inconnu(tenant)
+
+    storage.set_tenant_active(tenant, active)
+    return JsonResponse({"ok": True, "tenant": tenant, "active": active})
+
+
+@csrf_exempt
+def create_user(request):
+    """Crée (ou met à jour) un compte Mine, piloté par le portail."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST requis"}, status=405)
+    body = _json_body(request)
+    if body is None:
+        return JsonResponse({"error": "JSON invalide"}, status=400)
+
+    username = str(body.get("username") or "").strip()
+    password = str(body.get("password") or "")
+    role = str(body.get("role") or "Invite").strip()
+    if not body.get("tenant"):
+        return JsonResponse({"error": "tenant requis"}, status=400)
+    tenant = storage.safe_tenant_id(body.get("tenant"))
+    if not username or not password:
+        return JsonResponse({"error": "username et password requis"}, status=400)
+    if role not in ROLES_CLIENT:
+        return JsonResponse({"error": f"Rôle Mine non autorisé : « {role} ». "
+                                      f"Rôles possibles : {', '.join(ROLES_CLIENT)}"}, status=400)
+    if not _tenant_existe(tenant):
+        return _inconnu(tenant)
+
+    mgr = get_user_manager()
+    existant = mgr.get_user(username)
+    if existant:
+        autre_tenant = storage.safe_tenant_id(existant.get("tenant_id") or "default") != tenant
+        if existant.get("role") == "Gestionnaire" or autre_tenant:
+            return JsonResponse({"error": f"L'identifiant « {username} » est déjà utilisé dans Mine "
+                                          f"par un autre compte. Choisis un autre identifiant."}, status=409)
+        # Rôle inchangé -> on ne réinitialise pas les permissions personnalisées.
+        nouveau_role = role if role != existant.get("role") else None
+        mgr.update_user(username, password=password, role=nouveau_role)
+        return JsonResponse({"ok": True, "updated": True, "username": username})
+
+    mgr.add_user(username, password, role, tenant_id=tenant)
+    return JsonResponse({"ok": True, "created": True, "username": username})

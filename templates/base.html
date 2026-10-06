@@ -278,5 +278,15 @@
   setInterval(geLoadNotifs, 60000);  // rafraîchit toutes les 60 s
 </script>
 {% block body_extra %}{% endblock %}
+{# Barre de bascule GOOD ENGINEERS (session ge_switchbar posée par /sso/). #}
+{% if request.session.ge_switchbar %}
+  {{ request.session.ge_switchbar|json_script:"ge-switchbar-data" }}
+  <script>
+    try {
+      window.GE_SWITCHBAR = JSON.parse(document.getElementById('ge-switchbar-data').textContent);
+    } catch (e) {}
+  </script>
+  <script src="https://geportail.duckdns.org/static/portal/switchbar.js"></script>
+{% endif %}
 </body>
 </html>
