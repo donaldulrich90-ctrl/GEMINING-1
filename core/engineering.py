@@ -156,6 +156,7 @@ def get_period_report(tenant_id, start, end):
                    COALESCE(SUM(hours_worked),0) h,
                    COALESCE(SUM(production_tonnes),0) prod,
                    COALESCE(SUM(fuel_consumed),0) fuel,
+                   COALESCE(SUM(fuel_consumed * fuel_price_usd),0) cout_usd,
                    COALESCE(SUM(cycles_added),0) cyc,
                    COUNT(*) n
             FROM manual_entries
@@ -166,16 +167,22 @@ def get_period_report(tenant_id, start, end):
     for r in rows:
         r["tph"] = round(r["prod"] / r["h"], 2) if r["h"] > 0 else 0
         r["lpt"] = round(r["fuel"] / r["prod"], 3) if r["prod"] > 0 else 0
+        # Coûts carburant unitaires, en USD (convertis en devise d'affichage par la vue)
+        r["cpt_usd"] = round(r["cout_usd"] / r["prod"], 4) if r["prod"] > 0 else 0
+        r["cpc_usd"] = round(r["cout_usd"] / r["cyc"], 4) if r["cyc"] > 0 else 0
     tot = {
         "h": round(sum(r["h"] for r in rows), 1),
         "prod": round(sum(r["prod"] for r in rows), 1),
         "fuel": round(sum(r["fuel"] for r in rows), 1),
+        "cout_usd": round(sum(r["cout_usd"] for r in rows), 2),
         "cyc": int(sum(r["cyc"] for r in rows)),
         "n": sum(r["n"] for r in rows),
         "engins": len(rows),
     }
     tot["tph"] = round(tot["prod"] / tot["h"], 2) if tot["h"] > 0 else 0
     tot["lpt"] = round(tot["fuel"] / tot["prod"], 3) if tot["prod"] > 0 else 0
+    tot["cpt_usd"] = round(tot["cout_usd"] / tot["prod"], 4) if tot["prod"] > 0 else 0
+    tot["cpc_usd"] = round(tot["cout_usd"] / tot["cyc"], 4) if tot["cyc"] > 0 else 0
     return rows, tot
 
 
