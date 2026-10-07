@@ -128,6 +128,33 @@ def module_state(request):
 
 
 @csrf_exempt
+def create_enterprise(request):
+    """Crée (ou retrouve) le tenant d'une entreprise Mine, piloté par le portail."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST requis"}, status=405)
+    body = _json_body(request)
+    if body is None:
+        return JsonResponse({"error": "JSON invalide"}, status=400)
+
+    name = str(body.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"error": "name requis"}, status=400)
+    tenant = body.get("tenant") or ""
+    tid = (storage.safe_tenant_id(tenant) if tenant
+           else storage.safe_tenant_id(storage.slugify_tenant_name(name)))
+    plan = body.get("plan") or "standard"
+
+    if _tenant_existe(tid):
+        return JsonResponse({"ok": True, "existing": True, "tenant": tid})
+    cree = storage.create_tenant(name, tid=tid, plan=plan)
+    if not cree:
+        return JsonResponse({"error": f"Création tenant impossible ({tid})"}, status=500)
+    return JsonResponse({"ok": True, "created": True, "tenant": cree})
+
+
+@csrf_exempt
 def create_user(request):
     """Crée (ou met à jour) un compte Mine, piloté par le portail."""
     if not _cle_ok(request):
