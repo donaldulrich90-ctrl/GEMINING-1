@@ -544,12 +544,50 @@ def finance_view(request):
             "rev_annee": round(c.revenu_annee), "is_bcm": c.contract_type == "BCM",
         })
     net = summary["mois"] - fuel_total
+
+    # ── Rentabilité & coût/rendement en FCFA ────────────────────────────────
+    # Les montants sont stockés en USD (saisie multi-devise convertie à l'entrée).
+    # On convertit en FCFA pour l'affichage via le taux de change courant.
+    from core.market import get_exchange_rates
+    from core.engineering import get_period_report
+    cfa = get_exchange_rates().get("CFA", 610.0)
+    pr_rows, pr_tot = get_period_report(tid, sd.strftime("%Y-%m-%d"), ed.strftime("%Y-%m-%d"))
+    renta_rows = []
+    for r in pr_rows:
+        cout_fcfa = (r.get("cout_usd") or 0) * cfa
+        prod = r.get("prod") or 0
+        cyc = r.get("cyc") or 0
+        renta_rows.append({
+            "machine": r.get("machine_id"),
+            "prod": round(prod, 1),
+            "cycles": int(cyc),
+            "litres": round(r.get("fuel") or 0),
+            "cout_fcfa": round(cout_fcfa),
+            "cpt_fcfa": round(cout_fcfa / prod) if prod > 0 else 0,
+            "cpc_fcfa": round(cout_fcfa / cyc) if cyc > 0 else 0,
+            "lpt": r.get("lpt") or 0,
+        })
+    renta_tot = {
+        "prod": round(pr_tot.get("prod") or 0, 1),
+        "cycles": int(pr_tot.get("cyc") or 0),
+        "litres": round(pr_tot.get("fuel") or 0),
+        "cout_fcfa": round((pr_tot.get("cout_usd") or 0) * cfa),
+        "cpt_fcfa": round((pr_tot.get("cpt_usd") or 0) * cfa),
+        "cpc_fcfa": round((pr_tot.get("cpc_usd") or 0) * cfa),
+    }
+
     ctx = {
         "message": message, "can_edit": can_edit, "summary": summary,
         "contracts": contracts, "company": cm.company_info,
         "fuel_total": round(fuel_total), "fuel_rows": fuel_rows,
         "period_start": sd.strftime("%Y-%m-%d"), "period_end": ed.strftime("%Y-%m-%d"),
         "net_mois": round(net),
+        # FCFA
+        "cfa_rate": round(cfa),
+        "rev_mois_fcfa": round(summary["mois"] * cfa),
+        "fuel_total_fcfa": round(fuel_total * cfa),
+        "net_fcfa": round(net * cfa),
+        "renta_rows": renta_rows, "renta_tot": renta_tot,
     }
     return render(request, "finance.html", ctx)
 

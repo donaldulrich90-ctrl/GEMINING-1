@@ -29,6 +29,24 @@
 
     <!-- 0 · Vue d'ensemble -->
     <div class="subtab-panel active">
+      <div class="content-card">
+        <h3>📈 Rentabilité &amp; coût / rendement <span style="color:#F5B800;">(FCFA)</span></h3>
+        <p style="color:#A9BDB2;font-size:13px;margin:-4px 0 10px;">Période {{ period_start }} → {{ period_end }} · taux appliqué : 1 USD = {{ cfa_rate }} FCFA · coûts carburant réels issus des saisies.</p>
+        <div class="kpi-grid">
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🗓️ Revenu mensuel</div><div class="kpi-val">{{ rev_mois_fcfa|floatformat:0 }} FCFA</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⛽ Coût carburant (période)</div><div class="kpi-val">{{ fuel_total_fcfa|floatformat:0 }} FCFA</div></div>
+          <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">💰 Rentabilité nette</div><div class="kpi-val" style="color:{% if net_fcfa >= 0 %}#3ECf8E{% else %}#ff6b6b{% endif %};">{{ net_fcfa|floatformat:0 }} FCFA</div></div>
+        </div>
+        <h4 style="margin:14px 0 6px;">Coût / rendement par engin</h4>
+        <div style="overflow-x:auto;"><table class="ge-table">
+          <thead><tr><th>Machine</th><th>Production (T)</th><th>Cycles</th><th>Litres</th><th>Coût carburant (FCFA)</th><th>Coût / tonne (FCFA)</th><th>Coût / cycle (FCFA)</th><th>L / tonne</th></tr></thead>
+          <tbody>
+            {% for r in renta_rows %}<tr><td><strong>{{ r.machine }}</strong></td><td>{{ r.prod|floatformat:0 }}</td><td>{{ r.cycles }}</td><td>{{ r.litres|floatformat:0 }}</td><td>{{ r.cout_fcfa|floatformat:0 }}</td><td>{{ r.cpt_fcfa|floatformat:0 }}</td><td>{{ r.cpc_fcfa|floatformat:0 }}</td><td>{{ r.lpt }}</td></tr>
+            {% empty %}<tr><td colspan="8" style="text-align:center;color:#A9BDB2;">Aucune saisie sur la période — élargissez la plage de dates dans « Dépenses &amp; gain ».</td></tr>{% endfor %}
+          </tbody>
+          {% if renta_rows %}<tfoot><tr style="font-weight:800;border-top:2px solid rgba(245,184,0,.4);"><td>TOTAL</td><td>{{ renta_tot.prod|floatformat:0 }}</td><td>{{ renta_tot.cycles }}</td><td>{{ renta_tot.litres|floatformat:0 }}</td><td>{{ renta_tot.cout_fcfa|floatformat:0 }}</td><td>{{ renta_tot.cpt_fcfa|floatformat:0 }}</td><td>{{ renta_tot.cpc_fcfa|floatformat:0 }}</td><td>{{ renta_tot.lpt }}</td></tr></tfoot>{% endif %}
+        </table></div>
+      </div>
       <div class="content-card"><h3>📊 Résumé des revenus — tous contrats confondus</h3>
         <div class="kpi-grid">
           <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">💵 Revenu journalier</div><div class="kpi-val">${{ summary.jour|floatformat:0 }}</div></div>
