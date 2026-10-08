@@ -65,6 +65,56 @@ def metrics(request):
         log.exception("metrics Mine KO pour %s", tenant)
         return JsonResponse({"error": f"lecture des données impossible : {e}"}, status=500)
 
+    # Arrêts (incidents de shift) et maintenance sur la période.
+    arrets_h_par_engin = {}
+    arrets_par_motif = {}
+    arrets_detail = []
+    maintenance = []
+    try:
+        from core.db import get_connection
+        with get_connection(tenant) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT machine_id, incident_type, COALESCE(SUM(duration_hours),0) h, COUNT(*) n "
+                "FROM shift_incidents WHERE entry_date >= ? AND entry_date <= ? "
+                "GROUP BY machine_id, incident_type", (start, end))
+            for r in cur.fetchall():
+                d = dict(r)
+                eng = d.get("machine_id")
+                motif = d.get("incident_type") or "Autre"
+                h = round(d.get("h") or 0, 1)
+                arrets_h_par_engin[eng] = round(arrets_h_par_engin.get(eng, 0) + h, 1)
+                m = arrets_par_motif.setdefault(motif, {"motif": motif, "heures": 0, "count": 0})
+                m["heures"] = round(m["heures"] + h, 1)
+                m["count"] += int(d.get("n") or 0)
+            cur.execute(
+                "SELECT machine_id, entry_date, shift, incident_type, duration_hours, "
+                "production_impact, measures_next_shift FROM shift_incidents "
+                "WHERE entry_date >= ? AND entry_date <= ? ORDER BY entry_date DESC LIMIT 200",
+                (start, end))
+            for r in cur.fetchall():
+                d = dict(r)
+                arrets_detail.append({
+                    "engin": d.get("machine_id"), "date": d.get("entry_date"),
+                    "shift": d.get("shift"), "motif": d.get("incident_type") or "Autre",
+                    "heures": round(d.get("duration_hours") or 0, 1),
+                    "impact": d.get("production_impact") or "",
+                    "mesures": d.get("measures_next_shift") or "",
+                })
+            cur.execute(
+                "SELECT machine_id, date_maintenance, maintenance_type, mechanic_name, notes "
+                "FROM maintenance_logs WHERE date_maintenance >= ? AND date_maintenance <= ? "
+                "ORDER BY date_maintenance DESC LIMIT 200", (start, end))
+            for r in cur.fetchall():
+                d = dict(r)
+                maintenance.append({
+                    "engin": d.get("machine_id"), "date": d.get("date_maintenance"),
+                    "type": d.get("maintenance_type") or "", "technician": d.get("mechanic_name") or "",
+                    "description": d.get("notes") or "",
+                })
+    except Exception:  # noqa: BLE001
+        log.exception("metrics Mine — arrêts/maintenance KO pour %s", tenant)
+
     par_engin = [{
         "engin": r.get("machine_id"),
         "production": round(r.get("prod", 0), 1),
@@ -73,6 +123,7 @@ def metrics(request):
         "cycles": int(r.get("cyc", 0)),
         "tph": r.get("tph", 0),
         "lpt": r.get("lpt", 0),
+        "arrets_h": arrets_h_par_engin.get(r.get("machine_id"), 0),
     } for r in rows]
 
     # Effectif actif, lu directement dans staff.json. On n'instancie pas
@@ -91,6 +142,10 @@ def metrics(request):
         "par_engin": par_engin,
         "production_total": tot.get("prod", 0),
         "carburant_litres": tot.get("fuel", 0),
+        "arrets_h_total": round(sum(arrets_h_par_engin.values()), 1),
+        "arrets_par_motif": sorted(arrets_par_motif.values(), key=lambda x: -x["heures"]),
+        "arrets_detail": arrets_detail,
+        "maintenance": maintenance,
         # Le coût d'exploitation détaillé vit dans le module finance ; on le
         # laisse à 0 ici pour rester léger (à relier plus tard si besoin).
         "cout_total": 0,
