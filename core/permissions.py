@@ -9,6 +9,7 @@ l'admin), comme dans l'ancienne application.
 # (clé, libellé affiché, clé de permission, slug d'URL)
 TABS = [
     ("DASHBOARD",            "📊 DASHBOARD",   "dashboard",            "dashboard"),
+    ("PLANIFICATION",        "🗓️ PLAN.",       "dashboard",            "planification"),
     ("CYCLES",               "🔄 CYCLES",      "cycles",               "cycles"),
     ("CARBURANT",            "⛽ CARBURANT",   "carburant",            "carburant"),
     ("MAINT.",               "🔧 MAINT.",      "maintenance",          "maintenance"),
