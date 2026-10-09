@@ -89,7 +89,7 @@
         </div>
         {% endif %}
 
-        {% if can_edit and b._open %}
+        {% if can_edit and b.is_open %}
         <div class="eb-acts">
           {% if b.statut == 'nouveau' or b.statut == 'assigne' %}
           <form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="assign"><input type="hidden" name="id" value="{{ b.id }}"><input class="eb-inp-sm" type="text" name="assignee" placeholder="Allouer à (utilisateur)" required><button class="eb-btn eb-btn-s" type="submit">Allouer</button></form>
