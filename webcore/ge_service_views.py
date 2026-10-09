@@ -47,6 +47,17 @@ def _inconnu(tenant):
     return JsonResponse({"error": f"Tenant Mine « {tenant} » introuvable"}, status=404)
 
 
+def besoins(request):
+    """Expressions de besoin (tonnes/matériel) du tenant pour le portail consolidé."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    tenant = storage.safe_tenant_id(request.GET.get("tenant") or "default")
+    if not _tenant_existe(tenant):
+        return _inconnu(tenant)
+    data = storage.load_tenant_json(tenant, "besoins", []) or []
+    return JsonResponse({"module": "mine", "besoins": data}, safe=True)
+
+
 def plan(request):
     """Plan de planification + réel par date (tonnes) pour le suivi consolidé portail."""
     if not _cle_ok(request):

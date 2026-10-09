@@ -35,6 +35,17 @@ def navigation(request):
     if not marquee:
         marquee = ["Centre de contrôle GOOD ENGINEERS — Production • Sécurité • Performance"]
 
+    # Expressions de besoin ouvertes (badge de navigation)
+    besoins_open = 0
+    if tid != "__platform__":
+        try:
+            besoins_open = sum(
+                1 for b in (storage.load_tenant_json(tid, "besoins", []) or [])
+                if b.get("statut") not in ("valide", "rejete")
+            )
+        except Exception:
+            besoins_open = 0
+
     # Taux de change (toutes devises) + prix de l'or « live » — en cache 15/5 min.
     rates = {"CFA": 610.0, "EUR": 0.92}
     all_rates = {"USD": 1.0, "EUR": 0.92, "CFA": 610.0, "XOF": 610.0}
@@ -67,6 +78,7 @@ def navigation(request):
 
     return {
         "nav_tabs": tabs,
+        "besoins_open": besoins_open,
         "current_slug": current_slug,
         "ge_username": me,
         "ge_role": role,

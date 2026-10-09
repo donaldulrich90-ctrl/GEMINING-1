@@ -10,6 +10,7 @@ l'admin), comme dans l'ancienne application.
 TABS = [
     ("DASHBOARD",            "📊 DASHBOARD",   "dashboard",            "dashboard"),
     ("PLANIFICATION",        "🗓️ PLAN.",       "dashboard",            "planification"),
+    ("EXPRESSION DE BESOIN", "📝 BESOINS",     "dashboard",            "besoins"),
     ("CYCLES",               "🔄 CYCLES",      "cycles",               "cycles"),
     ("CARBURANT",            "⛽ CARBURANT",   "carburant",            "carburant"),
     ("MAINT.",               "🔧 MAINT.",      "maintenance",          "maintenance"),

@@ -1199,9 +1199,129 @@ def planification_view(request):
     return render(request, "planification.html", ctx)
 
 
+def _besoins_load(tid):
+    return storage.load_tenant_json(tid, "besoins", []) or []
+
+
+def _besoins_save(tid, data):
+    storage.save_tenant_json(tid, "besoins", data)
+
+
+def _besoins_save_files(tid, bid, files):
+    import os
+    import re as _re
+    import time as _time
+    from datetime import datetime as _dt
+    out = []
+    d = os.path.join(storage.tenant_dir(tid), "besoins")
+    os.makedirs(d, exist_ok=True)
+    for f in (files or [])[:10]:
+        safe = _re.sub(r"[^\w.\-]+", "_", f.name or "fichier")[-80:]
+        fname = "%d_%d_%s" % (bid, int(_time.time() * 1000) % 100000, safe)
+        with open(os.path.join(d, fname), "wb") as out_f:
+            for chunk in f.chunks():
+                out_f.write(chunk)
+        out.append({"name": (f.name or "fichier")[:200], "file": fname,
+                    "at": _dt.now().isoformat(timespec="seconds")})
+    return out
+
+
+_BESOIN_TYPES = {"Matériel", "Pièce", "Consommable", "Carburant", "Service", "Autre"}
+_BESOIN_PRIOS = {"normal", "urgent", "critique"}
+
+
+def besoins_view(request):
+    from datetime import datetime as _dt
+    tid = _tenant(request)
+    can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
+    actor = request.ge_user.get("username") or request.ge_user.get("name") or ""
+    besoins = _besoins_load(tid)
+
+    if request.method == "POST" and can_edit:
+        action = request.POST.get("action") or ""
+        now = _dt.now().isoformat(timespec="seconds")
+        if action == "create":
+            designation = (request.POST.get("designation") or "").strip()[:400]
+            if designation:
+                nid = max([int(b.get("id", 0)) for b in besoins], default=0) + 1
+                typ = request.POST.get("type") or "Matériel"
+                if typ not in _BESOIN_TYPES:
+                    typ = "Matériel"
+                prio = request.POST.get("priorite") or "normal"
+                if prio not in _BESOIN_PRIOS:
+                    prio = "normal"
+                try:
+                    qte = float(request.POST.get("quantite") or 0)
+                except (ValueError, TypeError):
+                    qte = 0
+                rec = {
+                    "id": nid, "numero": "EB-%s-%04d" % (tid, len(besoins) + 1),
+                    "createdAt": now, "createdBy": actor,
+                    "site": (request.POST.get("site") or "")[:160], "type": typ,
+                    "designation": designation, "quantite": qte,
+                    "unite": (request.POST.get("unite") or "")[:40], "priorite": prio,
+                    "justification": (request.POST.get("justification") or "")[:3000],
+                    "statut": "nouveau", "assignee": "", "verificateur": "", "validateur": "",
+                    "attachments": _besoins_save_files(tid, nid, request.FILES.getlist("files")),
+                    "history": [{"at": now, "by": actor, "action": "création"}],
+                }
+                besoins.insert(0, rec)
+                _besoins_save(tid, besoins)
+        elif action in ("assign", "execute", "verify", "validate", "reject", "attach"):
+            try:
+                bid = int(request.POST.get("id") or 0)
+            except (ValueError, TypeError):
+                bid = 0
+            for b in besoins:
+                if int(b.get("id", 0)) == bid:
+                    if action == "attach":
+                        b.setdefault("attachments", []).extend(
+                            _besoins_save_files(tid, bid, request.FILES.getlist("files")))
+                    else:
+                        label = ""
+                        if action == "assign":
+                            b["assignee"] = (request.POST.get("assignee") or "")[:120]
+                            b["statut"] = "assigne"; label = "allouée à " + b["assignee"]
+                        elif action == "execute":
+                            b["statut"] = "traite"; label = "exécutée (marquée faite)"
+                        elif action == "verify":
+                            b["verificateur"] = actor; b["statut"] = "verifie"; label = "vérifiée"
+                        elif action == "validate":
+                            b["validateur"] = actor; b["statut"] = "valide"; label = "validée"
+                        elif action == "reject":
+                            b["statut"] = "rejete"; label = "rejetée"
+                        b.setdefault("history", []).append(
+                            {"at": now, "by": actor, "action": label,
+                             "comment": (request.POST.get("comment") or "")[:1000]})
+                    break
+            _besoins_save(tid, besoins)
+        return redirect(reverse("tab", args=["besoins"]))
+
+    for b in besoins:
+        b["_open"] = b.get("statut") not in ("valide", "rejete")
+    ctx = {"besoins": besoins, "can_edit": can_edit,
+           "nb_open": sum(1 for b in besoins if b.get("statut") not in ("valide", "rejete"))}
+    return render(request, "besoins.html", ctx)
+
+
+def besoins_file_view(request, bid, idx):
+    import os
+    from django.http import FileResponse, Http404
+    tid = _tenant(request)
+    for b in _besoins_load(tid):
+        if int(b.get("id", 0)) == int(bid):
+            atts = b.get("attachments") or []
+            if 0 <= int(idx) < len(atts):
+                p = os.path.join(storage.tenant_dir(tid), "besoins", atts[int(idx)].get("file", ""))
+                if os.path.exists(p):
+                    return FileResponse(open(p, "rb"), filename=atts[int(idx)].get("name") or "fichier")
+    raise Http404("Pièce jointe introuvable")
+
+
 _VIEW_BY_SLUG = {
     "dashboard": dashboard_view,
     "planification": planification_view,
+    "besoins": besoins_view,
     "cycles": cycles_view,
     "carburant": carburant_view,
     "maintenance": maintenance_view,
