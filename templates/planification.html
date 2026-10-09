@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Planification & Suivi — GOOD ENGINEERS OS{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  .pl-wrap{max-width:1040px}
+  .pl-card{background:var(--ge-panel);border:1px solid var(--ge-border);border-radius:14px;padding:18px;margin-bottom:18px}
+  .pl-card.kpi{border-left:4px solid var(--ge-gold)}
+  .pl-h{color:var(--ge-gold);font-weight:800;font-size:16px;margin:0 0 12px}
+  .pl-grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .pl-field label{display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ge-muted)}
+  .pl-field input,.pl-field select{width:100%;padding:8px 10px;border:1px solid var(--ge-border);border-radius:9px;background:rgba(255,255,255,.04);color:var(--ge-text);font:inherit}
+  .pl-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+  .pl-btn{border:0;border-radius:9px;font-weight:700;font-size:13px;padding:9px 15px;cursor:pointer;font-family:inherit}
+  .pl-btn-p{background:var(--ge-gold);color:#10251c}
+  .pl-btn-s{background:var(--ge-bg-2);color:var(--ge-text);border:1px solid var(--ge-border)}
+  .pl-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .pl-lab{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ge-muted)}
+  .pl-val{font-size:23px;font-weight:900;margin-top:4px;font-variant-numeric:tabular-nums}
+  .pl-sub{font-size:11px;color:var(--ge-muted);margin-top:2px}
+  .pl-tabs{display:flex;gap:8px;margin-bottom:12px}
+  .pl-tab{background:var(--ge-bg-2);border:1px solid var(--ge-border);border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;color:var(--ge-muted);cursor:pointer}
+  .pl-tab.active{background:var(--ge-gold);color:#10251c;border-color:var(--ge-gold)}
+  table.pl{width:100%;border-collapse:collapse;font-size:13px}
+  table.pl th{text-align:left;padding:8px 10px;text-transform:uppercase;letter-spacing:.04em;font-size:11px;color:var(--ge-muted);border-bottom:2px solid var(--ge-border)}
+  table.pl td{padding:7px 10px;border-bottom:1px solid var(--ge-border)}
+  table.pl td.num{font-variant-numeric:tabular-nums}
+  .pl-alert{background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.35);border-radius:12px;padding:12px 14px;margin-bottom:18px;color:#f3b0ae;font-size:13px}
+  .pl-ok{color:var(--ge-success);font-weight:700}
+  .pl-bad{color:var(--ge-danger);font-weight:700}
+  .pl-muted{color:var(--ge-muted)}
+  .pl-targetinp{width:92px;padding:5px 8px;border-radius:7px;border:1px solid var(--ge-border);background:rgba(255,255,255,.04);color:var(--ge-text)}
+  @media(max-width:760px){.pl-grid5{grid-template-columns:1fr 1fr}.pl-kpis{grid-template-columns:1fr 1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pl-wrap">
+  <h1 style="font-family:'Oswald',sans-serif;color:var(--ge-gold);margin:0 0 4px">🗓️ Planification &amp; Suivi</h1>
+  <p class="pl-muted" style="margin:0 0 18px;font-size:13px">Objectifs court &amp; long terme (plan de la mine) et suivi planifié vs réel (tonnes).</p>
+
+  {% if message %}<div class="pl-card" style="border-left:4px solid var(--ge-success)"><span class="pl-ok">✓ {{ message }}</span></div>{% endif %}
+
+  <div id="plContent"></div>
+
+  <form id="plForm" method="post" style="display:none">
+    {% csrf_token %}
+    <input type="hidden" name="plan_json" id="plPlanJson">
+  </form>
+</div>
+
+<script id="plPlanData" type="application/json">{{ plan_json }}</script>
+<script id="plActualData" type="application/json">{{ actuals_json }}</script>
+<script>
+(function(){
+  var CAN_EDIT = {{ can_edit|yesno:"true,false" }};
+  var UNIT = 't';
+  var plData = { plan:null, horizon:'month', chart:null, status:'' };
+  try { plData.plan = JSON.parse(document.getElementById('plPlanData').textContent || 'null'); } catch(e){ plData.plan=null; }
+  var ACT = {}; try { ACT = JSON.parse(document.getElementById('plActualData').textContent || '{}') || {}; } catch(e){ ACT={}; }
+
+  function num(n,d){ n=Number(n)||0; try{ return n.toLocaleString('fr-FR',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); }catch(e){ return String(Math.round(n)); } }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function parseD(s){ if(!s) return null; var p=String(s).slice(0,10).split('-'); if(p.length!==3) return null; var dt=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); return isNaN(dt.getTime())?null:dt; }
+  function fmtD(dt){ return dt.toISOString().slice(0,10); }
+  function addDays(dt,n){ var d=new Date(dt.getTime()); d.setUTCDate(d.getUTCDate()+n); return d; }
+  function dayCount(a,b){ return Math.round((b-a)/86400000)+1; }
+  function today(){ var n=new Date(); return new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())); }
+
+  function genPeriods(start,end,total){
+    var s=parseD(start),e=parseD(end); if(!s||!e||e<s) return {months:[],weeks:[]};
+    var totalDays=dayCount(s,e); if(totalDays<=0) totalDays=1;
+    var months=[],cur=new Date(Date.UTC(s.getUTCFullYear(),s.getUTCMonth(),1));
+    while(cur<=e){ var next=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,1)); var mS=cur<s?s:cur,mE=addDays(next,-1); if(mE>e)mE=e; var days=dayCount(mS,mE); months.push({start:fmtD(mS),end:fmtD(mE),label:mS.toLocaleDateString('fr-FR',{month:'short',year:'numeric'}),target:total*days/totalDays}); cur=next; }
+    var weeks=[],ws=new Date(s.getTime()),i=1;
+    while(ws<=e){ var we=addDays(ws,6); if(we>e)we=e; var wd=dayCount(ws,we); weeks.push({start:fmtD(ws),end:fmtD(we),label:'S'+i+' · '+ws.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}),target:total*wd/totalDays}); ws=addDays(we,1); i++; }
+    function fix(a){ var sum=0; a.forEach(function(p){p.target=Math.round(p.target);sum+=p.target;}); if(a.length){ a[a.length-1].target+=Math.round(total)-sum; if(a[a.length-1].target<0)a[a.length-1].target=0; } }
+    fix(months); fix(weeks); return {months:months,weeks:weeks};
+  }
+  function sumRange(start,end){ var s=parseD(start),e=parseD(end); if(!s||!e) return 0; var sum=0; for(var k in ACT){ var d=parseD(k); if(d&&d>=s&&d<=e) sum+=Number(ACT[k])||0; } return sum; }
+
+  function readForm(){
+    var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+    return { label:g('plLabel'), startDate:g('plStart'), endDate:g('plEnd'), totalTarget:Number(g('plTotal'))||0 };
+  }
+  window.plGenerate=function(){
+    var f=readForm();
+    if(!f.startDate||!f.endDate){ alertPl('Renseigne les dates de début et de fin.'); return; }
+    if(parseD(f.endDate)<parseD(f.startDate)){ alertPl('La date de fin doit être après le début.'); return; }
+    if(!(f.totalTarget>0)){ alertPl('Renseigne un objectif total supérieur à 0.'); return; }
+    var gen=genPeriods(f.startDate,f.endDate,f.totalTarget);
+    plData.plan={label:f.label||'Plan',metric:'tonnes',unit:'t',site:'',startDate:f.startDate,endDate:f.endDate,totalTarget:f.totalTarget,months:gen.months,weeks:gen.weeks};
+    draw();
+  };
+  window.plSetHorizon=function(h){ plData.horizon=(h==='week'?'week':'month'); draw(); };
+  window.plSave=function(){
+    var f=readForm();
+    if(!plData.plan){ window.plGenerate(); if(!plData.plan) return; }
+    var arr=plData.horizon==='week'?plData.plan.weeks:plData.plan.months;
+    document.querySelectorAll('.pl-targetinp').forEach(function(inp){ var idx=Number(inp.getAttribute('data-idx')); if(arr&&arr[idx]) arr[idx].target=Number(inp.value)||0; });
+    plData.plan.label=f.label||'Plan'; plData.plan.startDate=f.startDate; plData.plan.endDate=f.endDate; plData.plan.totalTarget=f.totalTarget;
+    document.getElementById('plPlanJson').value=JSON.stringify(plData.plan);
+    document.getElementById('plForm').submit();
+  };
+  function alertPl(msg){ var host=document.getElementById('plContent'); if(host){ var b=document.createElement('div'); b.className='pl-alert'; b.textContent='⚠ '+msg; host.insertBefore(b,host.firstChild); window.setTimeout(function(){ if(b.parentNode)b.parentNode.removeChild(b); },4000); } }
+
+  function kpi(lab,val,sub,color){ return '<div class="pl-card kpi"><div class="pl-lab">'+esc(lab)+'</div><div class="pl-val" style="color:'+color+'">'+val+'</div><div class="pl-sub">'+esc(sub)+'</div></div>'; }
+
+  function draw(){
+    var host=document.getElementById('plContent'); if(!host) return;
+    var p=plData.plan;
+    var html='';
+    html+='<div class="pl-card"><h3 class="pl-h">1 · Définir le plan (donné par la mine)</h3><div class="pl-grid5">';
+    html+='<div class="pl-field"><label>Intitulé</label><input id="plLabel" type="text" value="'+esc(p?p.label:'Plan production')+'"'+(CAN_EDIT?'':' disabled')+'></div>';
+    html+='<div class="pl-field"><label>Métrique</label><select disabled><option>Tonnes produites</option></select></div>';
+    html+='<div class="pl-field"><label>Début</label><input id="plStart" type="date" value="'+esc(p?p.startDate:'')+'"'+(CAN_EDIT?'':' disabled')+'></div>';
+    html+='<div class="pl-field"><label>Fin</label><input id="plEnd" type="date" value="'+esc(p?p.endDate:'')+'"'+(CAN_EDIT?'':' disabled')+'></div>';
+    html+='<div class="pl-field"><label>Objectif total (t)</label><input id="plTotal" type="number" min="0" step="1" value="'+(p?Number(p.totalTarget)||0:'')+'"'+(CAN_EDIT?'':' disabled')+'></div>';
+    html+='</div>';
+    if(CAN_EDIT){ html+='<div class="pl-btns"><button type="button" class="pl-btn pl-btn-s" onclick="plGenerate()">↻ Générer les périodes</button><button type="button" class="pl-btn pl-btn-p" onclick="plSave()">💾 Enregistrer le plan</button></div>'; }
+    html+='<p class="pl-muted" style="font-size:12px;margin-top:8px">Répartition au prorata des jours (mensuel = long terme, hebdo = court terme), éditable avant enregistrement.</p></div>';
+
+    if(!p||!((p.months&&p.months.length)||(p.weeks&&p.weeks.length))){
+      html+='<div class="pl-card"><p class="pl-muted">Renseigne les dates et l\'objectif total, puis « Générer les périodes » pour démarrer le suivi.</p></div>';
+      host.innerHTML=html; return;
+    }
+
+    var periods=plData.horizon==='week'?(p.weeks||[]):(p.months||[]);
+    var td=today();
+    var totalTarget=Number(p.totalTarget)||periods.reduce(function(s,x){return s+(Number(x.target)||0);},0);
+    var cumPlan=0,cumAct=0,cumPlanToDate=0,cumActToDate=0;
+    var rows=periods.map(function(per){
+      var plan=Number(per.target)||0, act=sumRange(per.start,per.end);
+      cumPlan+=plan; cumAct+=act;
+      var pEnd=parseD(per.end),st=parseD(per.start);
+      var ended=pEnd&&pEnd<td, ongoing=st&&st<=td&&pEnd&&pEnd>=td;
+      if(ended||ongoing){ cumPlanToDate+=plan; cumActToDate+=act; }
+      return {per:per,plan:plan,act:act,cumPlan:cumPlan,cumAct:cumAct,ended:ended,ongoing:ongoing};
+    });
+    var pctDone=totalTarget>0?(cumAct/totalTarget*100):0;
+    var ecart=cumActToDate-cumPlanToDate;
+    var ecartPct=cumPlanToDate>0?(ecart/cumPlanToDate*100):0;
+    var s0=parseD(p.startDate),e0=parseD(p.endDate),projEnd='—',rate=0;
+    if(s0){ var elapsedEnd=td<(e0||td)?td:(e0||td); var daysElapsed=Math.max(1,dayCount(s0,elapsedEnd)); rate=cumAct/daysElapsed; if(rate>0&&totalTarget>cumAct){ projEnd=addDays(td,Math.ceil((totalTarget-cumAct)/rate)).toLocaleDateString('fr-FR'); } else if(totalTarget>0&&cumAct>=totalTarget){ projEnd='Objectif atteint'; } }
+    var late=ecart<0&&Math.abs(ecartPct)>=5;
+
+    html+='<div class="pl-kpis">';
+    html+=kpi('Réalisé',num(cumAct)+' / '+num(totalTarget)+' '+UNIT,num(pctDone,0)+' % de l\'objectif','var(--ge-gold)');
+    html+=kpi('Écart à date',(ecart>=0?'+':'')+num(ecart)+' '+UNIT,(ecart>=0?'En avance':'En retard')+' ('+num(ecartPct,0)+' %)',ecart>=0?'var(--ge-success)':'var(--ge-danger)');
+    html+=kpi('Fin projetée',esc(projEnd),'Objectif '+esc(p.endDate||'—'),'var(--ge-text)');
+    html+=kpi('Rythme réel',num(rate,1)+' '+UNIT+'/j','Sur la période écoulée','var(--ge-text)');
+    html+='</div>';
+    if(late){ html+='<div class="pl-alert"><strong>⚠ Retard détecté :</strong> le cumul réel est inférieur de '+num(Math.abs(ecart))+' '+UNIT+' ('+num(Math.abs(ecartPct),0)+' %) au plan à cette date.</div>'; }
+
+    html+='<div class="pl-tabs"><button type="button" class="pl-tab'+(plData.horizon==='month'?' active':'')+'" onclick="plSetHorizon(\'month\')">Long terme (mensuel)</button><button type="button" class="pl-tab'+(plData.horizon==='week'?' active':'')+'" onclick="plSetHorizon(\'week\')">Court terme (hebdo)</button></div>';
+    html+='<div class="pl-card"><h3 class="pl-h">Courbe cumulée — planifié vs réel</h3><div style="position:relative;height:300px"><canvas id="plChart"></canvas></div></div>';
+
+    html+='<div class="pl-card"><h3 class="pl-h">2 · Objectifs par période &amp; suivi ('+(plData.horizon==='week'?'hebdomadaire':'mensuel')+')</h3><div style="overflow-x:auto"><table class="pl"><thead><tr>';
+    ['Période','Objectif ('+UNIT+')','Réel','Écart','Cumul plan','Cumul réel','Statut'].forEach(function(h){ html+='<th>'+h+'</th>'; });
+    html+='</tr></thead><tbody>';
+    rows.forEach(function(r,idx){
+      var e=r.act-r.plan;
+      var statut=(!r.ended&&!r.ongoing)?'<span class="pl-muted">À venir</span>':(r.cumAct>=r.cumPlan?'<span class="pl-ok">● À jour</span>':'<span class="pl-bad">● En retard</span>');
+      html+='<tr>';
+      html+='<td style="font-weight:600">'+esc(r.per.label)+'<div class="pl-muted" style="font-size:10px">'+esc(r.per.start)+' → '+esc(r.per.end)+'</div></td>';
+      html+='<td>'+(CAN_EDIT?('<input type="number" min="0" step="1" class="pl-targetinp" data-idx="'+idx+'" value="'+(Number(r.plan)||0)+'">'):('<span class="num">'+num(r.plan)+'</span>'))+'</td>';
+      html+='<td class="num" style="font-weight:700">'+num(r.act)+'</td>';
+      html+='<td class="num" style="font-weight:700;color:'+(e>=0?'var(--ge-success)':'var(--ge-danger)')+'">'+(e>=0?'+':'')+num(e)+'</td>';
+      html+='<td class="num">'+num(r.cumPlan)+'</td><td class="num">'+num(r.cumAct)+'</td><td>'+statut+'</td>';
+      html+='</tr>';
+    });
+    html+='</tbody></table></div><p class="pl-muted" style="font-size:12px;margin-top:10px">Le réel provient des saisies de production journalières (tonnes).</p></div>';
+
+    host.innerHTML=html;
+
+    try{
+      if(plData.chart){ plData.chart.destroy(); plData.chart=null; }
+      var ctx=document.getElementById('plChart');
+      if(ctx&&window.Chart){
+        var labels=rows.map(function(r){return r.per.label;});
+        var planCum=rows.map(function(r){return r.cumPlan;});
+        var actCum=rows.map(function(r){return (r.ended||r.ongoing)?r.cumAct:null;});
+        plData.chart=new Chart(ctx,{type:'line',
+          data:{labels:labels,datasets:[
+            {label:'Planifié (cumul)',data:planCum,borderColor:'#A9BDB2',backgroundColor:'rgba(169,189,178,.12)',borderDash:[6,4],fill:true,tension:.15,pointRadius:2},
+            {label:'Réel (cumul)',data:actCum,borderColor:'#F5B800',backgroundColor:'rgba(245,184,0,.15)',fill:true,tension:.15,pointRadius:2,spanGaps:false}
+          ]},
+          options:{responsive:true,maintainAspectRatio:false,animation:false,
+            plugins:{legend:{labels:{color:'#A9BDB2',font:{size:12}}}},
+            scales:{x:{ticks:{color:'#8aa093',font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#8aa093',font:{size:10}},grid:{color:'rgba(255,255,255,.06)'},beginAtZero:true}}}
+        });
+      }
+    }catch(e){}
+  }
+
+  draw();
+})();
+</script>
+{% endblock %}

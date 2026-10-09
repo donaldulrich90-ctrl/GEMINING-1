@@ -1112,8 +1112,96 @@ def notifications_view(request):
 # ---------------------------------------------------------------------------
 # Routage des onglets
 # ---------------------------------------------------------------------------
+def _normalize_plan_mine(body):
+    """Nettoie le plan reçu du client (bornage + limites)."""
+    def _num(v, lo, hi, fb):
+        try:
+            n = float(v)
+        except (TypeError, ValueError):
+            return fb
+        if n < lo:
+            n = lo
+        if n > hi:
+            n = hi
+        return n
+
+    def _txt(v, mx):
+        s = "" if v is None else str(v)
+        return s[:mx]
+
+    def _periods(arr):
+        out = []
+        if isinstance(arr, list):
+            for p in arr[:400]:
+                if not isinstance(p, dict):
+                    continue
+                out.append({
+                    "start": _txt(p.get("start"), 20),
+                    "end": _txt(p.get("end"), 20),
+                    "label": _txt(p.get("label"), 40),
+                    "target": _num(p.get("target"), 0, 1e9, 0),
+                })
+        return out
+
+    return {
+        "label": _txt(body.get("label"), 160) or "Plan",
+        "metric": "tonnes",
+        "unit": "t",
+        "site": _txt(body.get("site"), 160),
+        "startDate": _txt(body.get("startDate"), 20),
+        "endDate": _txt(body.get("endDate"), 20),
+        "totalTarget": _num(body.get("totalTarget"), 0, 1e9, 0),
+        "months": _periods(body.get("months")),
+        "weeks": _periods(body.get("weeks")),
+    }
+
+
+def planification_view(request):
+    """Planification & Suivi (Mine) — plan court/long terme + suivi tonnes planifiées vs réelles."""
+    from core.db import get_connection
+    tid = _tenant(request)
+    can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
+    message = ""
+    if request.method == "POST" and can_edit:
+        try:
+            body = json.loads(request.POST.get("plan_json") or "")
+        except (ValueError, TypeError):
+            body = None
+        if isinstance(body, dict):
+            storage.save_tenant_json(tid, "planification", _normalize_plan_mine(body))
+            message = "Plan enregistré."
+
+    plan = storage.load_tenant_json(tid, "planification", None)
+
+    actuals = {}
+    try:
+        conn = get_connection(tid)
+        try:
+            cur = conn.execute(
+                "SELECT entry_date, COALESCE(SUM(production_tonnes),0) AS t "
+                "FROM manual_entries GROUP BY entry_date"
+            )
+            for row in cur.fetchall():
+                d = str(row["entry_date"] or "")[:10]
+                if d:
+                    actuals[d] = actuals.get(d, 0) + (row["t"] or 0)
+        finally:
+            conn.close()
+    except Exception:
+        actuals = {}
+
+    ctx = {
+        "plan_json": mark_safe(json.dumps(plan).replace("</", "<\\/")),
+        "actuals_json": mark_safe(json.dumps(actuals).replace("</", "<\\/")),
+        "can_edit": can_edit,
+        "message": message,
+    }
+    return render(request, "planification.html", ctx)
+
+
 _VIEW_BY_SLUG = {
     "dashboard": dashboard_view,
+    "planification": planification_view,
     "cycles": cycles_view,
     "carburant": carburant_view,
     "maintenance": maintenance_view,
