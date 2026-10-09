@@ -1298,7 +1298,7 @@ def besoins_view(request):
         return redirect(reverse("tab", args=["besoins"]))
 
     for b in besoins:
-        b["_open"] = b.get("statut") not in ("valide", "rejete")
+        b["is_open"] = b.get("statut") not in ("valide", "rejete")
     ctx = {"besoins": besoins, "can_edit": can_edit,
            "nb_open": sum(1 for b in besoins if b.get("statut") not in ("valide", "rejete"))}
     return render(request, "besoins.html", ctx)
