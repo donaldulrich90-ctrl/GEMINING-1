@@ -9,8 +9,8 @@
   --ge-gold: #F5B800;
   --ge-gold-soft: #ffce61;
   --ge-text: #F3F6F2;
-  --ge-muted: #A9BDB2;
-  --ge-border: rgba(255, 255, 255, 0.08);
+  --ge-muted: #C3D3C9;
+  --ge-border: rgba(255, 255, 255, 0.16);
   --ge-success: #28A745;
   --ge-warning: #FF6B00;
   --ge-danger: #DC3545;
@@ -263,6 +263,9 @@ h1, h2, h3, h4 { font-family: 'Oswald', 'Montserrat', sans-serif; font-weight: 7
   outline: none; border-color: var(--ge-gold); box-shadow: 0 0 0 2px rgba(245, 184, 0, 0.15);
 }
 .ge-form select option { background: #0D2A20; color: #fff; }
+/* Lisibilité : placeholders et libellés secondaires plus contrastés */
+.ge-form input::placeholder, .ge-form textarea::placeholder, input::placeholder, textarea::placeholder { color: #9fb4a8; opacity: 1; }
+.ge-form label { color: #D7E4DB; }
 .btn-primary, .btn-danger {
   min-height: 46px; border-radius: 9px; font-weight: 800; font-size: 15px; cursor: pointer;
   margin-top: 6px; border: 1px solid transparent; transition: filter 0.15s ease;

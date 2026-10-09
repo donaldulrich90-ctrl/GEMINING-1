@@ -94,7 +94,7 @@
     {% if nav_tabs %}
     <nav class="ge-nav">
       {% for tab in nav_tabs %}
-        <a href="{% url 'tab' tab.slug %}" class="{% if tab.slug == current_slug %}active{% endif %}">{{ tab.label }}{% if tab.slug == 'messagerie' and ge_unread %} <span class="ge-nav-badge">{{ ge_unread }}</span>{% endif %}</a>
+        <a href="{% url 'tab' tab.slug %}" class="{% if tab.slug == current_slug %}active{% endif %}">{{ tab.label }}{% if tab.slug == 'messagerie' and ge_unread %} <span class="ge-nav-badge">{{ ge_unread }}</span>{% endif %}{% if tab.slug == 'besoins' and besoins_open %} <span class="ge-nav-badge">{{ besoins_open }}</span>{% endif %}</a>
       {% endfor %}
     </nav>
     {% endif %}

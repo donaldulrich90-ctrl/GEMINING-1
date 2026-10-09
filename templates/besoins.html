@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Expression de besoin — GOOD ENGINEERS OS{% endblock %}
+
+{% block head_extra %}
+<style>
+  .eb-wrap{max-width:1040px}
+  .eb-card{background:var(--ge-panel);border:1px solid var(--ge-border);border-radius:14px;padding:18px;margin-bottom:18px}
+  .eb-h{color:var(--ge-gold);font-weight:800;font-size:16px;margin:0 0 12px}
+  .eb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .eb-grid .span2{grid-column:span 2}
+  .eb-field label{display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:#D7E4DB}
+  .eb-field input,.eb-field select,.eb-field textarea{width:100%;padding:9px 11px;border:1px solid var(--ge-border);border-radius:9px;background:rgba(4,35,26,.6);color:var(--ge-text);font:inherit}
+  .eb-btn{border:0;border-radius:9px;font-weight:700;font-size:13px;padding:9px 15px;cursor:pointer;font-family:inherit}
+  .eb-btn-p{background:var(--ge-gold);color:#10251c}
+  .eb-btn-s{background:var(--ge-bg-2);color:var(--ge-text);border:1px solid var(--ge-border)}
+  .eb-btn-x{background:transparent;color:var(--ge-danger);border:1px solid var(--ge-danger)}
+  .eb-item{border:1px solid var(--ge-border);border-radius:12px;padding:14px;margin-bottom:12px}
+  .eb-chip{border-radius:999px;font-size:11px;font-weight:800;padding:2px 10px}
+  .eb-meta{color:var(--ge-muted);font-size:12px}
+  .eb-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .eb-acts form{display:inline-flex;gap:6px;align-items:center;margin:0}
+  .eb-att a{font-size:12px;color:var(--ge-gold);text-decoration:underline;margin-right:10px}
+  .eb-inp-sm{padding:6px 9px;border-radius:7px;border:1px solid var(--ge-border);background:rgba(4,35,26,.6);color:var(--ge-text);font-size:12px;width:160px}
+  @media(max-width:760px){.eb-grid{grid-template-columns:1fr 1fr}.eb-grid .span2{grid-column:span 2}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eb-wrap">
+  <h1 style="font-family:'Oswald',sans-serif;color:var(--ge-gold);margin:0 0 4px">📝 Expression de besoin</h1>
+  <p class="eb-meta" style="margin:0 0 18px">Demandes partagées à toute l'entreprise — pièces jointes et circuit allouer → exécuter → vérifier → valider. {% if nb_open %}<b style="color:var(--ge-gold)">{{ nb_open }} ouverte(s)</b>.{% endif %}</p>
+
+  {% if can_edit %}
+  <div class="eb-card">
+    <h3 class="eb-h">Nouvelle expression de besoin</h3>
+    <form method="post" enctype="multipart/form-data" action="{% url 'tab' 'besoins' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <div class="eb-grid">
+        <div class="eb-field"><label>Type</label><select name="type">
+          <option>Matériel</option><option>Pièce</option><option>Consommable</option><option>Carburant</option><option>Service</option><option>Autre</option>
+        </select></div>
+        <div class="eb-field span2"><label>Désignation *</label><input type="text" name="designation" required placeholder="Ex. : flexible hydraulique HP"></div>
+        <div class="eb-field"><label>Priorité</label><select name="priorite"><option value="normal">Normal</option><option value="urgent">Urgent</option><option value="critique">Critique</option></select></div>
+        <div class="eb-field"><label>Quantité</label><input type="number" name="quantite" min="0" step="any" value="1"></div>
+        <div class="eb-field"><label>Unité</label><input type="text" name="unite" placeholder="pce, m, L…"></div>
+        <div class="eb-field"><label>Site</label><input type="text" name="site" placeholder="Site / chantier"></div>
+        <div class="eb-field"><label>Pièces jointes</label><input type="file" name="files" multiple></div>
+      </div>
+      <div class="eb-field" style="margin-top:12px"><label>Justification / détails</label><textarea name="justification" rows="2" placeholder="Motif, urgence, référence…"></textarea></div>
+      <div style="margin-top:12px"><button type="submit" class="eb-btn eb-btn-p">➕ Soumettre la demande</button></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="eb-card">
+    <h3 class="eb-h">Demandes ({{ besoins|length }})</h3>
+    {% if not besoins %}<p class="eb-meta">Aucune expression de besoin pour le moment.</p>{% endif %}
+    {% for b in besoins %}
+      <div class="eb-item" style="border-left:4px solid
+        {% if b.statut == 'valide' %}#28A745{% elif b.statut == 'rejete' %}#DC3545{% elif b.statut == 'verifie' %}#36b3d6{% elif b.statut == 'traite' %}#F5B800{% elif b.statut == 'assigne' %}#4a9eea{% else %}#9fb4a8{% endif %}">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px">
+          <span style="font-weight:800">{{ b.numero }}</span>
+          <span class="eb-chip" style="
+            {% if b.statut == 'valide' %}background:rgba(40,167,69,.15);color:#45d07a{% elif b.statut == 'rejete' %}background:rgba(220,53,69,.15);color:#f3908d{% elif b.statut == 'verifie' %}background:rgba(54,179,214,.15);color:#7fd4ec{% elif b.statut == 'traite' %}background:rgba(245,184,0,.18);color:#ffce61{% elif b.statut == 'assigne' %}background:rgba(74,158,234,.15);color:#9cc8f5{% else %}background:rgba(255,255,255,.08);color:var(--ge-muted){% endif %}">
+            {% if b.statut == 'valide' %}Validé{% elif b.statut == 'rejete' %}Rejeté{% elif b.statut == 'verifie' %}Vérifié{% elif b.statut == 'traite' %}Exécuté{% elif b.statut == 'assigne' %}Alloué{% else %}Nouveau{% endif %}</span>
+          <span style="font-weight:800;font-size:11px;text-transform:uppercase;color:{% if b.priorite == 'critique' %}#f3908d{% elif b.priorite == 'urgent' %}#ffce61{% else %}var(--ge-muted){% endif %}">{{ b.priorite }}</span>
+          <span class="eb-meta" style="margin-left:auto">{{ b.createdAt|slice:":16" }} · {{ b.createdBy }}</span>
+        </div>
+        <div style="font-weight:700;font-size:15px">{{ b.designation }}</div>
+        <div class="eb-meta" style="margin-top:2px">{{ b.type }} · {{ b.quantite }} {{ b.unite }}{% if b.site %} · {{ b.site }}{% endif %}</div>
+        {% if b.justification %}<div style="font-size:13px;margin-top:6px">{{ b.justification }}</div>{% endif %}
+
+        <div class="eb-att" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          {% for a in b.attachments %}<a href="{% url 'besoins_file' b.id forloop.counter0 %}" target="_blank">📎 {{ a.name }}</a>{% endfor %}
+          {% if can_edit %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'tab' 'besoins' %}" style="display:inline-flex;gap:6px;align-items:center">
+            {% csrf_token %}<input type="hidden" name="action" value="attach"><input type="hidden" name="id" value="{{ b.id }}">
+            <input type="file" name="files" style="font-size:11px;max-width:180px" onchange="this.form.submit()">
+          </form>
+          {% endif %}
+        </div>
+
+        {% if b.assignee or b.verificateur or b.validateur %}
+        <div class="eb-meta" style="margin-top:6px">
+          {% if b.assignee %}Alloué à <b>{{ b.assignee }}</b>{% endif %}
+          {% if b.verificateur %} · Vérifié par <b>{{ b.verificateur }}</b>{% endif %}
+          {% if b.validateur %} · Validé par <b>{{ b.validateur }}</b>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if can_edit and b._open %}
+        <div class="eb-acts">
+          {% if b.statut == 'nouveau' or b.statut == 'assigne' %}
+          <form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="assign"><input type="hidden" name="id" value="{{ b.id }}"><input class="eb-inp-sm" type="text" name="assignee" placeholder="Allouer à (utilisateur)" required><button class="eb-btn eb-btn-s" type="submit">Allouer</button></form>
+          {% endif %}
+          {% if b.statut == 'assigne' %}<form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="execute"><input type="hidden" name="id" value="{{ b.id }}"><button class="eb-btn eb-btn-s" type="submit">Marquer fait</button></form>{% endif %}
+          {% if b.statut == 'traite' %}<form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="verify"><input type="hidden" name="id" value="{{ b.id }}"><button class="eb-btn eb-btn-s" type="submit">Vérifier</button></form>{% endif %}
+          {% if b.statut == 'verifie' %}<form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="validate"><input type="hidden" name="id" value="{{ b.id }}"><button class="eb-btn eb-btn-p" type="submit">Valider</button></form>{% endif %}
+          <form method="post" action="{% url 'tab' 'besoins' %}">{% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="id" value="{{ b.id }}"><button class="eb-btn eb-btn-x" type="submit">Rejeter</button></form>
+        </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
