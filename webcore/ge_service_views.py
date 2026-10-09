@@ -47,6 +47,32 @@ def _inconnu(tenant):
     return JsonResponse({"error": f"Tenant Mine « {tenant} » introuvable"}, status=404)
 
 
+def plan(request):
+    """Plan de planification + réel par date (tonnes) pour le suivi consolidé portail."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    tenant = storage.safe_tenant_id(request.GET.get("tenant") or "default")
+    if not _tenant_existe(tenant):
+        return _inconnu(tenant)
+    plan_data = storage.load_tenant_json(tenant, "planification", None)
+    actuals = {}
+    if plan_data:
+        try:
+            from core.db import get_connection
+            with get_connection(tenant) as conn:
+                cur = conn.execute(
+                    "SELECT entry_date, COALESCE(SUM(production_tonnes),0) AS t "
+                    "FROM manual_entries GROUP BY entry_date"
+                )
+                for row in cur.fetchall():
+                    d = str(row["entry_date"] or "")[:10]
+                    if d:
+                        actuals[d] = actuals.get(d, 0) + (row["t"] or 0)
+        except Exception:  # noqa: BLE001
+            actuals = {}
+    return JsonResponse({"module": "mine", "plan": plan_data, "actualsByDate": actuals})
+
+
 def metrics(request):
     if not _cle_ok(request):
         return JsonResponse({"error": "Clé de service invalide"}, status=401)
