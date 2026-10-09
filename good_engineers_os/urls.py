@@ -12,6 +12,7 @@ urlpatterns = [
     # Portail GOOD ENGINEERS : connexion unique et API de métriques.
     path("sso/", ge_sso_views.sso_login, name="sso"),
     path("api/service/metrics/", ge_service_views.metrics, name="svc_metrics"),
+    path("api/service/plan/", ge_service_views.plan, name="svc_plan"),
     path("api/service/module-state/", ge_service_views.module_state, name="svc_module_state"),
     path("api/service/enterprise/", ge_service_views.create_enterprise, name="svc_create_enterprise"),
     path("api/service/user/", ge_service_views.create_user, name="svc_create_user"),
