@@ -45,8 +45,8 @@
   {% if k.revenu_jour > 0 %}
   <div class="dashboard-kpi kpi-border-accent">
     <div class="kpi-lab">💰 Revenus (jour)</div>
-    <div class="kpi-val">${{ k.revenu_jour }}</div>
-    <div class="kpi-sub">Rentabilité cumul. ${{ k.rentabilite_totale }}</div>
+    <div class="kpi-val">{{ k.revenu_jour }} FCFA</div>
+    <div class="kpi-sub">Rentabilité cumul. {{ k.rentabilite_totale }} FCFA</div>
   </div>
   {% else %}
   <div class="dashboard-kpi kpi-border-muted">

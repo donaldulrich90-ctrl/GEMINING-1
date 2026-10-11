@@ -66,8 +66,11 @@ def dashboard_view(request):
     cycles_totaux = col_sum_int(rows, "Cycles")
     total_heures = col_sum_int(rows, "H. Total")
     heures_jour = col_sum_int(rows, "H. Run Jour")
-    revenu_jour = col_sum_int(rows, "Rev. Jour ($)")
-    rentabilite_totale = col_sum_int(rows, "Rentabilité ($)")
+    # Montants en FCFA (données stockées en USD).
+    from core.market import get_exchange_rates
+    _cfa = get_exchange_rates().get("CFA", 610.0)
+    revenu_jour = round(col_sum_int(rows, "Rev. Jour ($)") * _cfa)
+    rentabilite_totale = round(col_sum_int(rows, "Rentabilité ($)") * _cfa)
     avg_cycle = col_mean(rows, "Tps Cycle Moy (min)")
     fuel_avg = col_mean(rows, "Carburant (%)") if rows else None
 
@@ -216,14 +219,17 @@ def carburant_view(request):
             manager = FleetManager(tid)  # recharger
 
     rows = manager.get_summary_rows()
+    # Montants convertis en FCFA (les données sont stockées en USD).
+    cfa = rates.get("CFA", 610.0)
     total_conso = col_sum_int(rows, "Conso. Jour (L)")
-    total_renta = col_sum_int(rows, "Rentabilité ($)")
+    total_renta = round(col_sum_int(rows, "Rentabilité ($)") * cfa)
     fuel_rows = [{"id": r["ID"], "type": r["Type"], "voyage": r["Conso. Voyage (L)"],
                   "shift": r["Conso. Shift (L)"], "jour": r["Conso. Jour (L)"], "mois": r["Conso. Mois (L)"],
-                  "rev": r["Rev. Jour ($)"], "cout": r["Coût Fuel ($)"], "renta": r["Rentabilité ($)"]}
+                  "rev": round(r["Rev. Jour ($)"] * cfa), "cout": round(r["Coût Fuel ($)"] * cfa),
+                  "renta": round(r["Rentabilité ($)"] * cfa)}
                  for r in rows]
     ctx = {
-        "message": message, "rates": rates,
+        "message": message, "rates": rates, "cfa_rate": round(cfa),
         "total_conso": total_conso, "total_renta": total_renta,
         "fuel_rows": fuel_rows, "machine_ids": [r["ID"] for r in rows],
     }
