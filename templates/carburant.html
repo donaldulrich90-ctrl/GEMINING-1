@@ -16,8 +16,8 @@
   </div>
   <div class="dashboard-kpi {% if total_renta >= 0 %}kpi-border-success{% else %}kpi-border-danger{% endif %}">
     <div class="kpi-lab">💰 Rentabilité nette</div>
-    <div class="kpi-val">{{ total_renta }} $</div>
-    <div class="kpi-sub">En dollar</div>
+    <div class="kpi-val">{{ total_renta }} FCFA</div>
+    <div class="kpi-sub">1 USD = {{ cfa_rate }} FCFA</div>
   </div>
   <div class="dashboard-kpi kpi-border-accent">
     <div class="kpi-lab">💱 Taux du jour (API)</div>
@@ -34,7 +34,7 @@
         <thead><tr>
           <th>ID</th><th>Type</th><th>Conso. voyage (L)</th><th>Conso. shift (L)</th>
           <th>Conso. jour (L)</th><th>Conso. mois (L)</th>
-          <th>Rev. jour ($)</th><th>Coût fuel ($)</th><th>Rentabilité ($)</th>
+          <th>Rev. jour (FCFA)</th><th>Coût fuel (FCFA)</th><th>Rentabilité (FCFA)</th>
         </tr></thead>
         <tbody>
           {% for f in fuel_rows %}
