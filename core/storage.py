@@ -261,3 +261,73 @@ def is_tenant_billing_ok(tenant_id: str) -> bool:
         except ValueError:
             return True
     return True
+
+
+# ---------------------------------------------------------------------------
+# Logo de l'entreprise abonnée (branding par tenant)
+# ---------------------------------------------------------------------------
+BRANDING_DIRNAME = "branding"
+_LOGO_EXT = {
+    "image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg",
+    "image/gif": ".gif", "image/webp": ".webp",
+}
+
+
+def _branding_dir(tenant_id: str) -> str:
+    d = os.path.join(tenant_dir(tenant_id), BRANDING_DIRNAME)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def tenant_logo_meta(tenant_id: str) -> dict:
+    return load_tenant_json(tenant_id, "branding.json", {}) or {}
+
+
+def tenant_logo_path(tenant_id: str):
+    """Chemin absolu du logo du tenant, ou None s'il n'y en a pas."""
+    fname = tenant_logo_meta(tenant_id).get("logo")
+    if not fname:
+        return None
+    p = os.path.join(_branding_dir(tenant_id), fname)
+    return p if os.path.exists(p) else None
+
+
+def save_tenant_logo(tenant_id: str, django_file):
+    """Enregistre le logo de l'entreprise. Retourne (ok: bool, message: str)."""
+    ctype = (getattr(django_file, "content_type", "") or "").lower()
+    ext = _LOGO_EXT.get(ctype)
+    if not ext:
+        name = (getattr(django_file, "name", "") or "").lower()
+        for e in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+            if name.endswith(e):
+                ext = ".jpg" if e == ".jpeg" else e
+                break
+    if not ext:
+        return False, "Format non supporté (PNG, JPG, GIF ou WEBP attendu)."
+    if (getattr(django_file, "size", 0) or 0) > 3 * 1024 * 1024:
+        return False, "Fichier trop volumineux (maximum 3 Mo)."
+    d = _branding_dir(tenant_id)
+    for old in os.listdir(d):
+        if old.startswith("logo."):
+            try:
+                os.remove(os.path.join(d, old))
+            except OSError:
+                pass
+    fname = "logo" + ext
+    with open(os.path.join(d, fname), "wb") as out:
+        for chunk in django_file.chunks():
+            out.write(chunk)
+    import time as _t
+    save_tenant_json(tenant_id, "branding.json", {"logo": fname, "mtime": int(_t.time())})
+    return True, "Logo de l'entreprise enregistré."
+
+
+def delete_tenant_logo(tenant_id: str) -> None:
+    d = _branding_dir(tenant_id)
+    for old in os.listdir(d):
+        if old.startswith("logo."):
+            try:
+                os.remove(os.path.join(d, old))
+            except OSError:
+                pass
+    save_tenant_json(tenant_id, "branding.json", {})

@@ -3,6 +3,15 @@
 {% block head_extra %}{% endblock %}
 
 {% block content %}
+{% if ge_tenant_logo_url %}
+<div class="dash-company-banner" style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid var(--ge-border);border-radius:14px;">
+  <img src="{{ ge_tenant_logo_url }}" alt="{{ ge_tenant_name }}" style="height:56px;max-width:160px;object-fit:contain;border-radius:8px;background:#fff;padding:6px;">
+  <div>
+    <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ge-muted);">Entreprise</div>
+    <div style="font-size:20px;font-weight:800;color:#fff;">{{ ge_tenant_name }}</div>
+  </div>
+</div>
+{% endif %}
 <div class="dash-header">
   <h1>🛰️ Centre de contrôle flotte</h1>
   <p>KPI temps réel • {{ today_str }}</p>
