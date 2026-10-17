@@ -351,7 +351,16 @@ def admin_view(request):
     if request.method == "POST":
         action = request.POST.get("action")
         uname = (request.POST.get("username") or "").strip()
-        if action == "add":
+        if action == "logo":
+            f = request.FILES.get("logo")
+            if f:
+                ok, message = storage.save_tenant_logo(tid, f)
+            else:
+                message = "Aucun fichier sélectionné."
+        elif action == "logo_delete":
+            storage.delete_tenant_logo(tid)
+            message = "Logo de l'entreprise supprimé."
+        elif action == "add":
             role = request.POST.get("role", "Invite")
             perms = None
             if request.POST.get("custom_perms"):
@@ -1322,6 +1331,18 @@ def besoins_file_view(request, bid, idx):
                 if os.path.exists(p):
                     return FileResponse(open(p, "rb"), filename=atts[int(idx)].get("name") or "fichier")
     raise Http404("Pièce jointe introuvable")
+
+
+def tenant_logo_view(request):
+    """Sert le logo de l'entreprise abonnée (branding par tenant)."""
+    from django.http import FileResponse, Http404
+    tid = _tenant(request)
+    p = storage.tenant_logo_path(tid)
+    if not p:
+        raise Http404("Logo introuvable")
+    resp = FileResponse(open(p, "rb"))
+    resp["Cache-Control"] = "private, max-age=300"
+    return resp
 
 
 _VIEW_BY_SLUG = {

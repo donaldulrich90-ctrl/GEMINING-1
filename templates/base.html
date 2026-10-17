@@ -23,6 +23,11 @@
       <img src="{% static 'img/good_engineers_logo.png' %}" alt="GOOD ENGINEERS">
     </div>
     <div class="ge-sb-company">
+      {% if ge_tenant_logo_url %}
+      <div class="ge-sb-tenant-logo" style="margin-bottom:8px;text-align:center;">
+        <img src="{{ ge_tenant_logo_url }}" alt="{{ ge_tenant_name }}" style="max-width:100%;max-height:70px;object-fit:contain;border-radius:8px;background:#fff;padding:6px;">
+      </div>
+      {% endif %}
       <div class="ge-sb-eyebrow">Entreprise abonnée</div>
       <div class="ge-sb-name">{{ ge_tenant_name }}</div>
     </div>

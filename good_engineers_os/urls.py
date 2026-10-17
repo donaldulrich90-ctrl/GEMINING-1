@@ -25,6 +25,7 @@ urlpatterns = [
     path("app/finance/facture-mensuelle/", views.facture_mensuelle_view, name="facture_mensuelle"),
     path("app/ingenierie/rapport/", views.rapport_view, name="rapport"),
     path("app/besoins/file/<int:bid>/<int:idx>/", views.besoins_file_view, name="besoins_file"),
+    path("app/branding/logo/", views.tenant_logo_view, name="tenant_logo"),
     path("app/<slug:slug>/", views.tab_view, name="tab"),
     path("app/dashboard/", views.dashboard_view, name="dashboard"),
 ]

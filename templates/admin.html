@@ -14,6 +14,7 @@
     <button class="subtab-btn" onclick="geSubtab('adm',1)">➕ Ajouter</button>
     <button class="subtab-btn" onclick="geSubtab('adm',2)">✏️ Modifier</button>
     <button class="subtab-btn" onclick="geSubtab('adm',3)">🗑️ Supprimer</button>
+    <button class="subtab-btn" onclick="geSubtab('adm',4)">🏢 Logo entreprise</button>
   </div>
   <div class="subtab-panels">
 
@@ -58,6 +59,28 @@
           <p style="color:#A9BDB2;font-size:13px;">Les comptes « admin » et « gestionnaire » sont protégés.</p>
           <button class="btn-danger">Supprimer</button>
         </form>
+      </div>
+    </div>
+
+    <div class="subtab-panel">
+      <div class="content-card" style="max-width:560px;"><h3>🏢 Logo de l'entreprise</h3>
+        <p style="color:#A9BDB2;font-size:13px;margin-top:0;">Ce logo s'affiche sur la page d'accueil et la barre latérale de {{ ge_tenant_name }}. Formats : PNG, JPG, GIF ou WEBP (max 3 Mo).</p>
+        {% if ge_tenant_logo_url %}
+        <div style="margin:10px 0;padding:12px;background:#fff;border-radius:10px;display:inline-block;">
+          <img src="{{ ge_tenant_logo_url }}" alt="{{ ge_tenant_name }}" style="max-height:80px;max-width:240px;object-fit:contain;display:block;">
+        </div>
+        {% else %}
+        <p style="color:#A9BDB2;font-size:13px;">Aucun logo pour le moment.</p>
+        {% endif %}
+        <form method="post" class="ge-form" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="logo">
+          <label>Choisir une image</label><input type="file" name="logo" accept="image/png,image/jpeg,image/gif,image/webp" required>
+          <button class="btn-primary">Enregistrer le logo</button>
+        </form>
+        {% if ge_tenant_logo_url %}
+        <form method="post" class="ge-form" style="margin-top:8px;" onsubmit="return confirm('Supprimer le logo de l\'entreprise ?');">{% csrf_token %}<input type="hidden" name="action" value="logo_delete">
+          <button class="btn-danger">Supprimer le logo</button>
+        </form>
+        {% endif %}
       </div>
     </div>
 

@@ -74,6 +74,16 @@ def navigation(request):
         label = names.get(c, "")
         options.append({"code": c, "label": f"{c} — {label}" if label else c})
 
+    # Logo de l'entreprise abonnée (affiché sur la page d'accueil / barre latérale)
+    tenant_logo_url = ""
+    if tid != "__platform__":
+        try:
+            if storage.tenant_logo_path(tid):
+                from django.urls import reverse as _rev
+                tenant_logo_url = _rev("tenant_logo") + "?v=" + str(storage.tenant_logo_meta(tid).get("mtime", ""))
+        except Exception:
+            tenant_logo_url = ""
+
     is_admin = bool(user.get("permissions", {}).get("admin"))
 
     return {
@@ -84,6 +94,7 @@ def navigation(request):
         "ge_role": role,
         "ge_tenant_id": tid,
         "ge_tenant_name": storage.tenant_name(tid),
+        "ge_tenant_logo_url": tenant_logo_url,
         "ge_marquee": marquee,
         "ge_rates": rates,
         "ge_rates_all_json": mark_safe(json.dumps(all_rates)),
