@@ -17,6 +17,7 @@ TABS = [
     ("GESTION STOCK",        "📦 STOCK",       "stock",                "stock"),
     ("CARTE",                "🗺️ CARTE",       "carte",                "carte"),
     ("FINANCE",              "💰 FINANCE",     "finance",              "finance"),
+    ("SOUS-TRAITANTS",       "⚒ S-TRAIT.",     "finance",              "soustraitants"),
     ("RH",                   "👥 RH",          "rh",                   "rh"),
     ("ADMIN",                "⚙️ ADMIN",       "admin",                "admin"),
     ("DONNÉES INGÉNIERIE",   "📐 ING.",        "donnees_ingenierie",   "ingenierie"),

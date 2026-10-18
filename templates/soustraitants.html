@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Sous-traitants — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <div>
+    <h1>⚒ Sous-traitants &amp; location de machines</h1>
+    <p>Paiement mensuel = tarif × usage réel − back-charges · bénéfice net · {{ ge_tenant_name }}</p>
+  </div>
+  <form method="get" style="display:flex;align-items:center;gap:8px">
+    <label style="color:#C3D3C9;font-size:13px">Période</label>
+    <input type="month" name="period" value="{{ period }}" onchange="this.form.submit()"
+           style="background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:8px;color:#fff;padding:7px 10px">
+  </form>
+</div>
+
+<div class="subtab-group" data-sg="st">
+  <div class="subtabs">
+    <button class="subtab-btn active" onclick="geSubtab('st',0)">📋 État de paiement</button>
+    <button class="subtab-btn" onclick="geSubtab('st',1)">🏢 Sous-traitants</button>
+    <button class="subtab-btn" onclick="geSubtab('st',2)">🛠 Machines louées</button>
+    <button class="subtab-btn" onclick="geSubtab('st',3)">📏 Relevé d'usage</button>
+    <button class="subtab-btn" onclick="geSubtab('st',4)">➖ Back-charges</button>
+  </div>
+  <div class="subtab-panels">
+
+    <!-- ÉTAT DE PAIEMENT -->
+    <div class="subtab-panel active">
+      <div class="kpi-grid" style="margin-bottom:14px">
+        <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">Brut sous-traitants</div><div class="kpi-val">{{ tot_gross|floatformat:0 }} F</div><div class="kpi-sub">Tarif × usage du mois</div></div>
+        <div class="dashboard-kpi kpi-border-warning"><div class="kpi-lab">Back-charges déduites</div><div class="kpi-val">− {{ tot_subback|floatformat:0 }} F</div><div class="kpi-sub">Imputées aux sous-traitants</div></div>
+        <div class="dashboard-kpi kpi-border-success"><div class="kpi-lab">Net à payer</div><div class="kpi-val">{{ tot_net|floatformat:0 }} F</div><div class="kpi-sub">À régler ce mois</div></div>
+        <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">Back-charges entreprise</div><div class="kpi-val">{{ ent_back|floatformat:0 }} F</div><div class="kpi-sub">Coûts propres entreprise</div></div>
+      </div>
+      <div class="content-card" style="margin-bottom:14px">
+        <h3 style="margin-top:0">💹 Bénéfice net du mois</h3>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="color:#C3D3C9">Revenus du mois (FCFA)</label>
+          <input type="number" id="stRev" placeholder="0" oninput="stProfit()"
+                 style="background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:8px;color:#fff;padding:7px 10px;width:180px">
+          <span style="color:#C3D3C9">− coûts {{ tot_costs|floatformat:0 }} F =</span>
+          <span id="stProfitVal" style="font-weight:800;color:var(--ge-gold);font-size:18px">—</span>
+        </div>
+        <p style="color:#9fb4a8;font-size:12px;margin:8px 0 0">Coûts = net sous-traitants ({{ tot_net|floatformat:0 }} F) + back-charges entreprise ({{ ent_back|floatformat:0 }} F).</p>
+      </div>
+      {% if not statement %}
+        <div class="content-card"><p style="color:#9fb4a8">Aucun sous-traitant. Ajoutes-en dans l'onglet « Sous-traitants », puis ses machines et le relevé d'usage.</p></div>
+      {% endif %}
+      {% for s in statement %}
+      <div class="content-card" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <strong style="font-size:16px">{{ s.name }}{% if s.phone %} <span style="color:#9fb4a8;font-weight:400">· {{ s.phone }}</span>{% endif %}</strong>
+          <div style="text-align:right"><div style="font-size:11px;color:#9fb4a8;text-transform:uppercase">Net à payer</div><div style="font-size:20px;font-weight:800;color:var(--ge-gold)">{{ s.net|floatformat:0 }} F</div></div>
+        </div>
+        {% if s.machines %}
+        <div style="overflow-x:auto;margin-top:8px"><table class="ge-table">
+          <thead><tr><th>Machine</th><th>Tarif</th><th>Usage</th><th style="text-align:right">Brut</th></tr></thead>
+          <tbody>{% for m in s.machines %}<tr><td>{{ m.label }}</td><td>{{ m.rate|floatformat:0 }} F{% if m.unit == 'heure' %}/h{% elif m.unit == 'metre' %}/m{% elif m.unit == 'forfait' %} (forfait){% else %}/jour{% endif %}</td><td>{% if m.unit == 'forfait' %}forfait{% else %}{{ m.quantity|floatformat:0 }}{% endif %}</td><td style="text-align:right">{{ m.gross|floatformat:0 }} F</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p style="color:#9fb4a8;font-size:13px;margin:6px 0 0">Aucune machine louée.</p>{% endif %}
+        {% if s.back_charges %}
+        <div style="margin-top:8px;border-top:1px solid var(--ge-border);padding-top:8px">
+          <p style="color:#C3D3C9;font-size:13px;margin:0 0 4px">Back-charges :</p>
+          {% for c in s.back_charges %}<div style="display:flex;justify-content:space-between;font-size:13px"><span>{{ c.label }}{% if c.file %} <a href="{% url 'st_file' c.id %}" target="_blank" style="color:#7fb0ff">📎</a>{% endif %}</span><span style="color:#ff8a8a">− {{ c.amount|floatformat:0 }} F</span></div>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- SOUS-TRAITANTS -->
+    <div class="subtab-panel">
+      {% if can_edit %}
+      <div class="content-card" style="max-width:720px"><h3 style="margin-top:0">➕ Ajouter / modifier un sous-traitant</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="sub_save"><input type="hidden" name="id" id="subId"><input type="hidden" name="period" value="{{ period }}">
+          <label>Nom *</label><input type="text" name="name" id="subName" required>
+          <label>Contact</label><input type="text" name="contact" id="subContact">
+          <label>Téléphone</label><input type="text" name="phone" id="subPhone">
+          <label>Email</label><input type="text" name="email" id="subEmail">
+          <label>Note</label><textarea name="note" id="subNote" rows="2"></textarea>
+          <button class="btn-primary" type="submit">Enregistrer</button>
+        </form>
+      </div>
+      {% endif %}
+      <div class="content-card"><h3>Sous-traitants ({{ subs|length }})</h3>
+        {% if not subs %}<p style="color:#9fb4a8">Aucun.</p>{% else %}
+        <div style="overflow-x:auto"><table class="ge-table"><thead><tr><th>Nom</th><th>Contact</th><th>Téléphone</th><th>Email</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+          <tbody>{% for s in subs %}<tr>
+            <td><strong>{{ s.name }}</strong></td><td>{{ s.contact }}</td><td>{{ s.phone }}</td><td>{{ s.email }}</td>
+            {% if can_edit %}<td style="white-space:nowrap">
+              <button type="button" style="background:rgba(245,184,0,.15);border:1px solid var(--ge-border);color:#F5B800;border-radius:6px;padding:4px 9px;cursor:pointer" onclick="stEditSub('{{ s.id }}','{{ s.name|escapejs }}','{{ s.contact|escapejs }}','{{ s.phone|escapejs }}','{{ s.email|escapejs }}','{{ s.note|escapejs }}')">✎</button>
+              <form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="sub_delete"><input type="hidden" name="id" value="{{ s.id }}"><input type="hidden" name="period" value="{{ period }}"><button class="btn-danger" type="submit">🗑</button></form>
+            </td>{% endif %}
+          </tr>{% endfor %}</tbody>
+        </table></div>{% endif %}
+      </div>
+    </div>
+
+    <!-- MACHINES LOUÉES -->
+    <div class="subtab-panel">
+      {% if not subs %}
+      <div class="content-card"><p style="color:#9fb4a8">Ajoute d'abord un sous-traitant.</p></div>
+      {% else %}
+      {% if can_edit %}
+      <div class="content-card" style="max-width:720px"><h3 style="margin-top:0">➕ Ajouter / modifier une machine louée</h3>
+        <form method="post" class="ge-form">{% csrf_token %}<input type="hidden" name="action" value="mac_save"><input type="hidden" name="id" id="macId"><input type="hidden" name="period" value="{{ period }}">
+          <label>Sous-traitant *</label><select name="subId" id="macSub">{% for s in subs %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+          <label>Nom / n° de machine *</label><input type="text" name="label" id="macLabel" required>
+          <label>Modèle</label><input type="text" name="model" id="macModel">
+          <label>Tarif (FCFA)</label><input type="number" step="any" name="rate" id="macRate">
+          <label>Unité</label><select name="unit" id="macUnit"><option value="jour">par jour</option><option value="heure">par heure</option><option value="metre">par mètre foré</option><option value="forfait">forfait mensuel</option></select>
+          <button class="btn-primary" type="submit">Enregistrer</button>
+        </form>
+      </div>
+      {% endif %}
+      <div class="content-card"><h3>Machines louées ({{ machines|length }})</h3>
+        {% if not machines %}<p style="color:#9fb4a8">Aucune.</p>{% else %}
+        <div style="overflow-x:auto"><table class="ge-table"><thead><tr><th>Machine</th><th>Sous-traitant</th><th>Tarif</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+          <tbody>{% for m in machines %}<tr>
+            <td><strong>{{ m.label }}</strong>{% if m.model %} <span style="color:#9fb4a8">({{ m.model }})</span>{% endif %}</td>
+            <td>{{ m.subName }}</td>
+            <td>{{ m.rate|floatformat:0 }} F{% if m.unit == 'heure' %}/h{% elif m.unit == 'metre' %}/m{% elif m.unit == 'forfait' %} (forfait){% else %}/jour{% endif %}</td>
+            {% if can_edit %}<td style="white-space:nowrap">
+              <button type="button" style="background:rgba(245,184,0,.15);border:1px solid var(--ge-border);color:#F5B800;border-radius:6px;padding:4px 9px;cursor:pointer" onclick="stEditMac('{{ m.id }}','{{ m.subId }}','{{ m.label|escapejs }}','{{ m.model|escapejs }}','{{ m.rate }}','{{ m.unit }}')">✎</button>
+              <form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="mac_delete"><input type="hidden" name="id" value="{{ m.id }}"><input type="hidden" name="period" value="{{ period }}"><button class="btn-danger" type="submit">🗑</button></form>
+            </td>{% endif %}
+          </tr>{% endfor %}</tbody>
+        </table></div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RELEVÉ D'USAGE -->
+    <div class="subtab-panel">
+      <div class="content-card">
+        <h3 style="margin-top:0">📏 Usage réel — {{ period }}</h3>
+        <p style="color:#9fb4a8;font-size:13px">Saisis la quantité du mois par machine (heures, jours ou mètres selon le tarif). Le forfait ne nécessite pas d'usage.</p>
+        {% if not usage_rows %}<p style="color:#9fb4a8">Aucune machine louée.</p>{% else %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="usage_save"><input type="hidden" name="period" value="{{ period }}">
+          <div style="overflow-x:auto"><table class="ge-table"><thead><tr><th>Machine</th><th>Sous-traitant</th><th>Tarif</th><th>Usage</th></tr></thead>
+            <tbody>{% for r in usage_rows %}<tr>
+              <td>{{ r.label }}</td><td>{{ r.subName }}</td>
+              <td>{{ r.rate|floatformat:0 }} F{% if r.unit == 'heure' %}/h{% elif r.unit == 'metre' %}/m{% elif r.unit == 'forfait' %} (forfait){% else %}/jour{% endif %}</td>
+              <td>{% if r.unit == 'forfait' %}<span style="color:#9fb4a8">forfait</span>{% else %}<input type="number" step="any" name="usage_{{ r.id }}" value="{{ r.quantity|floatformat:'-2' }}" {% if not can_edit %}disabled{% endif %} style="background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:6px;color:#fff;padding:5px 8px;width:120px">{% endif %}</td>
+            </tr>{% endfor %}</tbody>
+          </table></div>
+          {% if can_edit %}<button class="btn-primary" type="submit" style="margin-top:10px">💾 Enregistrer le relevé</button>{% endif %}
+        </form>{% endif %}
+      </div>
+    </div>
+
+    <!-- BACK-CHARGES -->
+    <div class="subtab-panel">
+      {% if can_edit %}
+      <div class="content-card" style="max-width:720px"><h3 style="margin-top:0">➕ Nouvelle back-charge — {{ period }}</h3>
+        <form method="post" class="ge-form" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="bc_save"><input type="hidden" name="period" value="{{ period }}">
+          <label>Imputation</label>
+          <select name="scope" onchange="document.getElementById('bcSub').style.display = this.value==='enterprise' ? 'none':''">
+            <option value="subcontractor">Déduire d'un sous-traitant</option>
+            <option value="enterprise">Côté entreprise (coût propre)</option>
+          </select>
+          <div id="bcSub"><label>Sous-traitant</label><select name="subId">{% for s in subs %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+          <label>Libellé (carburant, pièces, réparation…) *</label><input type="text" name="label" required>
+          <label>Montant (FCFA) *</label><input type="number" step="any" name="amount" required>
+          <label>Note</label><textarea name="note" rows="2"></textarea>
+          <label>Justificatif</label><input type="file" name="attachment">
+          <button class="btn-primary" type="submit">Enregistrer</button>
+        </form>
+      </div>
+      {% endif %}
+      <div class="content-card"><h3>Back-charges du mois ({{ charges_period|length }})</h3>
+        {% if not charges_period %}<p style="color:#9fb4a8">Aucune pour {{ period }}.</p>{% else %}
+        <div style="overflow-x:auto"><table class="ge-table"><thead><tr><th>Libellé</th><th>Imputation</th><th>Montant</th><th>Justif.</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+          <tbody>{% for c in charges_period %}<tr>
+            <td>{{ c.label }}</td><td>{{ c.subName }}</td><td style="color:#ff8a8a">− {{ c.amount|floatformat:0 }} F</td>
+            <td>{% if c.file %}<a href="{% url 'st_file' c.id %}" target="_blank" style="color:#7fb0ff">📎</a>{% else %}—{% endif %}</td>
+            {% if can_edit %}<td><form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="bc_delete"><input type="hidden" name="id" value="{{ c.id }}"><input type="hidden" name="period" value="{{ period }}"><button class="btn-danger" type="submit">🗑</button></form></td>{% endif %}
+          </tr>{% endfor %}</tbody>
+        </table></div>{% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+{% block body_extra %}
+<script>
+  function stProfit(){
+    var rev = Number(document.getElementById('stRev').value) || 0;
+    var costs = {{ tot_costs|floatformat:'-2' }};
+    var p = rev - costs; var el = document.getElementById('stProfitVal');
+    el.textContent = p.toLocaleString('fr-FR',{maximumFractionDigits:0}) + ' F';
+    el.style.color = p >= 0 ? '#58d08b' : '#ff8a8a';
+  }
+  function stEditSub(id,name,contact,phone,email,note){
+    document.getElementById('subId').value=id; document.getElementById('subName').value=name;
+    document.getElementById('subContact').value=contact; document.getElementById('subPhone').value=phone;
+    document.getElementById('subEmail').value=email; document.getElementById('subNote').value=note;
+    geSubtab('st',1); window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function stEditMac(id,subId,label,model,rate,unit){
+    document.getElementById('macId').value=id; document.getElementById('macSub').value=subId;
+    document.getElementById('macLabel').value=label; document.getElementById('macModel').value=model;
+    document.getElementById('macRate').value=rate; document.getElementById('macUnit').value=unit;
+    geSubtab('st',2); window.scrollTo({top:0,behavior:'smooth'});
+  }
+</script>
+{% endblock %}
