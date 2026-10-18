@@ -58,6 +58,68 @@ def besoins(request):
     return JsonResponse({"module": "mine", "besoins": data}, safe=True)
 
 
+def soustraitants(request):
+    """État de paiement des sous-traitants du tenant pour le portail consolidé."""
+    if not _cle_ok(request):
+        return JsonResponse({"error": "Clé de service invalide"}, status=401)
+    tenant = storage.safe_tenant_id(request.GET.get("tenant") or "default")
+    if not _tenant_existe(tenant):
+        return _inconnu(tenant)
+    import re as _re
+    period = str(request.GET.get("period") or "")[:7]
+    if not _re.match(r"^\d{4}-\d{2}$", period):
+        return JsonResponse({"error": "period AAAA-MM requis"}, status=400)
+
+    def _n(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    subs = storage.load_tenant_json(tenant, "soustraitants", []) or []
+    machines = storage.load_tenant_json(tenant, "st_machines", []) or []
+    usage = storage.load_tenant_json(tenant, "st_usage", []) or []
+    charges = storage.load_tenant_json(tenant, "st_backcharges", []) or []
+
+    u_by_m = {}
+    for u in usage:
+        if u.get("period") == period:
+            u_by_m[str(u.get("machineId"))] = u
+    c_by_sub = {}
+    ent_back = 0.0
+    for c in charges:
+        if c.get("period") != period:
+            continue
+        if c.get("scope") == "enterprise":
+            ent_back += _n(c.get("amount"))
+        else:
+            c_by_sub.setdefault(str(c.get("subId")), []).append(c)
+
+    gross = sub_back = net = 0.0
+    out = []
+    for s in subs:
+        g = 0.0
+        for m in machines:
+            if str(m.get("subId")) != str(s.get("id")):
+                continue
+            u = u_by_m.get(str(m.get("id")))
+            qty = _n(u.get("quantity")) if u else 0.0
+            rate = _n(m.get("rate"))
+            g += rate if m.get("unit") == "forfait" else rate * qty
+        bch = c_by_sub.get(str(s.get("id")), [])
+        back = sum(_n(c.get("amount")) for c in bch)
+        gross += g
+        sub_back += back
+        net += (g - back)
+        out.append({"name": s.get("name"), "gross": g, "backCharges": back, "net": g - back})
+
+    return JsonResponse({
+        "module": "mine", "period": period, "subcontractors": out,
+        "totals": {"gross": gross, "subcontractorBackCharges": sub_back, "netToPay": net,
+                   "enterpriseBackCharges": ent_back, "totalCosts": net + ent_back},
+    }, safe=True)
+
+
 def plan(request):
     """Plan de planification + réel par date (tonnes) pour le suivi consolidé portail."""
     if not _cle_ok(request):
