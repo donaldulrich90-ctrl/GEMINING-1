@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/service/metrics/", ge_service_views.metrics, name="svc_metrics"),
     path("api/service/plan/", ge_service_views.plan, name="svc_plan"),
     path("api/service/besoins/", ge_service_views.besoins, name="svc_besoins"),
+    path("api/service/soustraitants/", ge_service_views.soustraitants, name="svc_soustraitants"),
     path("api/service/module-state/", ge_service_views.module_state, name="svc_module_state"),
     path("api/service/enterprise/", ge_service_views.create_enterprise, name="svc_create_enterprise"),
     path("api/service/user/", ge_service_views.create_user, name="svc_create_user"),
