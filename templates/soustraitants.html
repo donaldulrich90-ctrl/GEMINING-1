@@ -20,6 +20,7 @@
     <button class="subtab-btn" onclick="geSubtab('st',2)">🛠 Machines louées</button>
     <button class="subtab-btn" onclick="geSubtab('st',3)">📏 Relevé d'usage</button>
     <button class="subtab-btn" onclick="geSubtab('st',4)">➖ Back-charges</button>
+    <button class="subtab-btn" onclick="geSubtab('st',5)">🚜 Allocation machines</button>
   </div>
   <div class="subtab-panels">
 
@@ -174,6 +175,33 @@
             <td>{{ c.label }}</td><td>{{ c.subName }}</td><td style="color:#ff8a8a">− {{ c.amount|floatformat:0 }} F</td>
             <td>{% if c.file %}<a href="{% url 'st_file' c.id %}" target="_blank" style="color:#7fb0ff">📎</a>{% else %}—{% endif %}</td>
             {% if can_edit %}<td><form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="bc_delete"><input type="hidden" name="id" value="{{ c.id }}"><input type="hidden" name="period" value="{{ period }}"><button class="btn-danger" type="submit">🗑</button></form></td>{% endif %}
+          </tr>{% endfor %}</tbody>
+        </table></div>{% endif %}
+      </div>
+    </div>
+
+    <!-- ALLOCATION MACHINES -->
+    <div class="subtab-panel">
+      <div class="content-card">
+        <h3 style="margin-top:0">🚜 Allocation des machines</h3>
+        <p style="color:#9fb4a8;font-size:13px">Indique si une machine de la flotte <strong>appartient à un sous-traitant</strong> (suivi du propriétaire). Choix enregistré immédiatement.</p>
+        {% if not subs %}<p style="color:#9fb4a8">Ajoute d'abord un sous-traitant.</p>
+        {% elif not fleet_machines %}<p style="color:#9fb4a8">Aucune machine dans la flotte.</p>
+        {% else %}
+        <div style="overflow-x:auto"><table class="ge-table"><thead><tr><th>Machine</th><th>Type</th><th>Propriétaire (sous-traitant)</th></tr></thead>
+          <tbody>{% for m in fleet_machines %}<tr>
+            <td><strong>{{ m.label }}</strong> <span style="color:#9fb4a8">({{ m.id }})</span></td>
+            <td>{{ m.type }}</td>
+            <td>
+              {% if can_edit %}
+              <form method="post" style="margin:0">{% csrf_token %}<input type="hidden" name="action" value="alloc_save"><input type="hidden" name="period" value="{{ period }}"><input type="hidden" name="machineId" value="{{ m.id }}">
+                <select name="subId" onchange="this.form.submit()" style="background:rgba(4,35,26,.6);border:1px solid var(--ge-border);border-radius:6px;color:#fff;padding:5px 8px">
+                  <option value="">— Entreprise (propre) —</option>
+                  {% for s in subs %}<option value="{{ s.id }}"{% if m.ownerId|stringformat:'s' == s.id|stringformat:'s' %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                </select>
+              </form>
+              {% else %}{{ m.ownerName|default:"—" }}{% endif %}
+            </td>
           </tr>{% endfor %}</tbody>
         </table></div>{% endif %}
       </div>
