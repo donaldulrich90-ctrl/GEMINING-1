@@ -1490,6 +1490,19 @@ def soustraitants_view(request):
             cid = request.POST.get("id")
             charges = [c for c in charges if str(c.get("id")) != str(cid)]
             _st_save(tid, "st_backcharges", charges)
+        elif action == "alloc_save":
+            mid = request.POST.get("machineId")
+            sub = request.POST.get("subId")
+            owners = storage.load_tenant_json(tid, "machine_owners", {}) or {}
+            if mid:
+                if sub:
+                    try:
+                        owners[str(mid)] = int(sub)
+                    except (TypeError, ValueError):
+                        owners.pop(str(mid), None)
+                else:
+                    owners.pop(str(mid), None)
+                storage.save_tenant_json(tid, "machine_owners", owners)
 
         return redirect(reverse("tab", args=["soustraitants"]) + "?period=" + period)
 
@@ -1546,10 +1559,28 @@ def soustraitants_view(request):
     for c in charges_period:
         c["subName"] = ("Entreprise" if c.get("scope") == "enterprise" else _st_sub_name(subs, c.get("subId")))
 
+    # Allocation : machines de la flotte (table SQLite) + propriétaire sous-traitant
+    owners = storage.load_tenant_json(tid, "machine_owners", {}) or {}
+    fleet_machines = []
+    try:
+        from core.db import get_connection
+        with get_connection(tid) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, model, type FROM machines ORDER BY id")
+            for r in cur.fetchall():
+                mid = str(r["id"])
+                oid = owners.get(mid)
+                fleet_machines.append({
+                    "id": r["id"], "label": (r["model"] or r["id"]), "type": r["type"],
+                    "ownerId": oid, "ownerName": (_st_sub_name(subs, oid) if oid else ""),
+                })
+    except Exception:
+        fleet_machines = []
+
     ctx = {
         "period": period, "can_edit": can_edit, "subs": subs, "machines": machines,
         "usage_rows": usage_rows, "statement": statement, "charges_period": charges_period,
-        "ent_charges": ent_charges,
+        "ent_charges": ent_charges, "fleet_machines": fleet_machines,
         "tot_gross": tot_gross, "tot_subback": tot_subback, "tot_net": tot_net,
         "ent_back": ent_back, "tot_costs": tot_net + ent_back,
     }
