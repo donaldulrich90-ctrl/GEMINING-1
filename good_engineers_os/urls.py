@@ -26,6 +26,7 @@ urlpatterns = [
     path("app/ingenierie/rapport/", views.rapport_view, name="rapport"),
     path("app/besoins/file/<int:bid>/<int:idx>/", views.besoins_file_view, name="besoins_file"),
     path("app/branding/logo/", views.tenant_logo_view, name="tenant_logo"),
+    path("app/soustraitants/file/<int:cid>/", views.st_file_view, name="st_file"),
     path("app/<slug:slug>/", views.tab_view, name="tab"),
     path("app/dashboard/", views.dashboard_view, name="dashboard"),
 ]

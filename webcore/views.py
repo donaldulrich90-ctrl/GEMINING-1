@@ -1345,6 +1345,236 @@ def tenant_logo_view(request):
     return resp
 
 
+# ---------------------------------------------------------------------------
+# Sous-traitants & location de machines
+# Paiement mensuel = tarif × usage réel − back-charges · bénéfice net
+# ---------------------------------------------------------------------------
+_ST_UNITS = {"jour", "heure", "metre", "forfait"}
+
+
+def _st_load(tid, name):
+    return storage.load_tenant_json(tid, name, []) or []
+
+
+def _st_save(tid, name, data):
+    storage.save_tenant_json(tid, name, data)
+
+
+def _st_next_id(rows):
+    return (max([int(r.get("id", 0)) for r in rows], default=0)) + 1
+
+
+def _st_num(v, fb=0.0):
+    try:
+        n = float(v)
+        return n if n >= 0 else 0.0
+    except (TypeError, ValueError):
+        return fb
+
+
+def _st_period_ok(p):
+    import re as _re
+    p = str(p or "")[:7]
+    return p if _re.match(r"^\d{4}-\d{2}$", p) else ""
+
+
+def _st_save_file(tid, django_file):
+    import os
+    import re as _re
+    import time as _time
+    d = os.path.join(storage.tenant_dir(tid), "backcharges")
+    os.makedirs(d, exist_ok=True)
+    safe = _re.sub(r"[^\w.\-]+", "_", django_file.name or "fichier")[-80:]
+    fname = "%d_%s" % (int(_time.time() * 1000) % 100000000, safe)
+    with open(os.path.join(d, fname), "wb") as out:
+        for chunk in django_file.chunks():
+            out.write(chunk)
+    return fname
+
+
+def soustraitants_view(request):
+    from datetime import datetime as _dt
+    tid = _tenant(request)
+    can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
+    actor = request.ge_user.get("username") or request.ge_user.get("name") or ""
+
+    period = _st_period_ok(request.GET.get("period")) or _dt.now().strftime("%Y-%m")
+    subs = _st_load(tid, "soustraitants")
+    machines = _st_load(tid, "st_machines")
+    usage = _st_load(tid, "st_usage")
+    charges = _st_load(tid, "st_backcharges")
+
+    if request.method == "POST" and can_edit:
+        action = request.POST.get("action") or ""
+        period = _st_period_ok(request.POST.get("period")) or period
+
+        if action == "sub_save":
+            name = (request.POST.get("name") or "").strip()[:160]
+            if name:
+                sid = request.POST.get("id")
+                rec = {"name": name, "contact": (request.POST.get("contact") or "")[:160],
+                       "phone": (request.POST.get("phone") or "")[:60], "email": (request.POST.get("email") or "")[:160],
+                       "note": (request.POST.get("note") or "")[:1000]}
+                if sid:
+                    for s in subs:
+                        if str(s.get("id")) == str(sid):
+                            s.update(rec)
+                            break
+                else:
+                    rec["id"] = _st_next_id(subs)
+                    subs.insert(0, rec)
+                _st_save(tid, "soustraitants", subs)
+        elif action == "sub_delete":
+            sid = request.POST.get("id")
+            subs = [s for s in subs if str(s.get("id")) != str(sid)]
+            machines = [m for m in machines if str(m.get("subId")) != str(sid)]
+            charges = [c for c in charges if str(c.get("subId")) != str(sid)]
+            _st_save(tid, "soustraitants", subs)
+            _st_save(tid, "st_machines", machines)
+            _st_save(tid, "st_backcharges", charges)
+        elif action == "mac_save":
+            label = (request.POST.get("label") or "").strip()[:160]
+            sub_id = request.POST.get("subId")
+            if label and sub_id:
+                unit = request.POST.get("unit") if request.POST.get("unit") in _ST_UNITS else "jour"
+                mid = request.POST.get("id")
+                rec = {"subId": int(sub_id), "label": label, "model": (request.POST.get("model") or "")[:120],
+                       "rate": _st_num(request.POST.get("rate")), "unit": unit}
+                if mid:
+                    for m in machines:
+                        if str(m.get("id")) == str(mid):
+                            m.update(rec)
+                            break
+                else:
+                    rec["id"] = _st_next_id(machines)
+                    machines.insert(0, rec)
+                _st_save(tid, "st_machines", machines)
+        elif action == "mac_delete":
+            mid = request.POST.get("id")
+            machines = [m for m in machines if str(m.get("id")) != str(mid)]
+            usage = [u for u in usage if str(u.get("machineId")) != str(mid)]
+            _st_save(tid, "st_machines", machines)
+            _st_save(tid, "st_usage", usage)
+        elif action == "usage_save":
+            for m in machines:
+                key = "usage_%s" % m.get("id")
+                if key in request.POST:
+                    qty = _st_num(request.POST.get(key))
+                    found = False
+                    for u in usage:
+                        if str(u.get("machineId")) == str(m.get("id")) and u.get("period") == period:
+                            u["quantity"] = qty
+                            found = True
+                            break
+                    if not found:
+                        usage.append({"machineId": m.get("id"), "period": period, "quantity": qty})
+            _st_save(tid, "st_usage", usage)
+        elif action == "bc_save":
+            label = (request.POST.get("label") or "").strip()[:200]
+            if label:
+                scope = request.POST.get("scope") if request.POST.get("scope") in ("subcontractor", "enterprise") else "subcontractor"
+                sub_id = request.POST.get("subId")
+                f = request.FILES.get("attachment")
+                rec = {"id": _st_next_id(charges), "scope": scope,
+                       "subId": (int(sub_id) if (scope == "subcontractor" and sub_id) else None),
+                       "period": period, "label": label, "amount": _st_num(request.POST.get("amount")),
+                       "note": (request.POST.get("note") or "")[:1000],
+                       "file": (_st_save_file(tid, f) if f else ""), "createdBy": actor,
+                       "createdAt": _dt.now().isoformat(timespec="seconds")}
+                if rec["scope"] == "subcontractor" and rec["subId"] is None:
+                    pass
+                else:
+                    charges.insert(0, rec)
+                    _st_save(tid, "st_backcharges", charges)
+        elif action == "bc_delete":
+            cid = request.POST.get("id")
+            charges = [c for c in charges if str(c.get("id")) != str(cid)]
+            _st_save(tid, "st_backcharges", charges)
+
+        return redirect(reverse("tab", args=["soustraitants"]) + "?period=" + period)
+
+    # --- Calcul de l'état de paiement pour la période ---
+    usage_by_m = {}
+    for u in usage:
+        if u.get("period") == period:
+            usage_by_m[str(u.get("machineId"))] = u
+    charges_period = [c for c in charges if c.get("period") == period]
+    charges_by_sub = {}
+    ent_charges = []
+    ent_back = 0.0
+    for c in charges_period:
+        if c.get("scope") == "enterprise":
+            ent_charges.append(c)
+            ent_back += _st_num(c.get("amount"))
+        else:
+            charges_by_sub.setdefault(str(c.get("subId")), []).append(c)
+
+    tot_gross = tot_subback = tot_net = 0.0
+    statement = []
+    for s in subs:
+        s_machines = []
+        for m in machines:
+            if str(m.get("subId")) != str(s.get("id")):
+                continue
+            u = usage_by_m.get(str(m.get("id")))
+            qty = _st_num(u.get("quantity")) if u else 0.0
+            rate = _st_num(m.get("rate"))
+            gross = rate if m.get("unit") == "forfait" else rate * qty
+            s_machines.append({"label": m.get("label"), "unit": m.get("unit"), "rate": rate,
+                               "quantity": qty, "gross": gross})
+        gross_total = sum(x["gross"] for x in s_machines)
+        bch = charges_by_sub.get(str(s.get("id")), [])
+        back_total = sum(_st_num(c.get("amount")) for c in bch)
+        net = gross_total - back_total
+        tot_gross += gross_total
+        tot_subback += back_total
+        tot_net += net
+        statement.append({"id": s.get("id"), "name": s.get("name"), "phone": s.get("phone"),
+                          "machines": s_machines, "gross_total": gross_total,
+                          "back_charges": bch, "back_total": back_total, "net": net})
+
+    # Relevé d'usage (machines actives) pré-rempli pour la période
+    usage_rows = []
+    for m in machines:
+        u = usage_by_m.get(str(m.get("id")))
+        usage_rows.append({"id": m.get("id"), "label": m.get("label"), "subName": _st_sub_name(subs, m.get("subId")),
+                           "unit": m.get("unit"), "rate": _st_num(m.get("rate")),
+                           "quantity": (_st_num(u.get("quantity")) if u else 0.0)})
+
+    for m in machines:
+        m["subName"] = _st_sub_name(subs, m.get("subId"))
+    for c in charges_period:
+        c["subName"] = ("Entreprise" if c.get("scope") == "enterprise" else _st_sub_name(subs, c.get("subId")))
+
+    ctx = {
+        "period": period, "can_edit": can_edit, "subs": subs, "machines": machines,
+        "usage_rows": usage_rows, "statement": statement, "charges_period": charges_period,
+        "ent_charges": ent_charges,
+        "tot_gross": tot_gross, "tot_subback": tot_subback, "tot_net": tot_net,
+        "ent_back": ent_back, "tot_costs": tot_net + ent_back,
+    }
+    return render(request, "soustraitants.html", ctx)
+
+
+def _st_sub_name(subs, sub_id):
+    for s in subs:
+        if str(s.get("id")) == str(sub_id):
+            return s.get("name")
+    return "—"
+
+
+def st_file_view(request, cid):
+    import os
+    from django.http import FileResponse, Http404
+    tid = _tenant(request)
+    for c in _st_load(tid, "st_backcharges"):
+        if str(c.get("id")) == str(cid) and c.get("file"):
+            p = os.path.join(storage.tenant_dir(tid), "backcharges", c.get("file"))
+            if os.path.exists(p):
+                return FileResponse(open(p, "rb"))
+    raise Http404("Justificatif introuvable")
+
+
 _VIEW_BY_SLUG = {
     "dashboard": dashboard_view,
     "planification": planification_view,
@@ -1354,6 +1584,7 @@ _VIEW_BY_SLUG = {
     "maintenance": maintenance_view,
     "stock": stock_view,
     "finance": finance_view,
+    "soustraitants": soustraitants_view,
     "carte": carte_view,
     "ingenierie": ingenierie_view,
     "sst": sst_view,
