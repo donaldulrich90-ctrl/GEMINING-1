@@ -8,8 +8,38 @@ from datetime import date, datetime, timedelta
 
 from . import storage
 
-ROLES_RH = ["Operateur", "Superviseur Production", "Superviseur Mecanicien",
-            "Ingenieur", "Mecanicien", "Electricien"]
+# Postes RH — les 6 premiers sont conservés tels quels car la logique de l'app
+# s'appuie sur ces valeurs exactes (ex. role == "Operateur"). La liste est
+# ensuite élargie à l'ensemble des postes d'une entreprise minière.
+ROLES_RH = [
+    "Operateur", "Superviseur Production", "Superviseur Mecanicien", "Ingenieur", "Mecanicien",
+    "Electricien", "Directeur général", "Directeur d'exploitation", "Directeur technique",
+    "Directeur administratif et financier (DAF)", "Responsable administratif",
+    "Responsable des ressources humaines", "Gestionnaire de paie", "Contrôleur de gestion", "Comptable",
+    "Caissier", "Juriste", "Assistant(e) de direction", "Secrétaire", "Administrateur",
+    "Informaticien / Responsable IT", "Géologue", "Géologue d'exploration", "Géologue de production",
+    "Aide-géologue", "Technicien géologue", "Hydrogéologue", "Géotechnicien", "Échantillonneur",
+    "Topographe", "Aide-topographe", "Géomètre", "Surintendant de mine", "Chef de mine",
+    "Ingénieur minier", "Ingénieur d'exploitation", "Surintendant de production",
+    "Superviseur de production", "Chef de quart", "Contremaître", "Chef d'équipe", "Opérateur de foreuse",
+    "Opérateur d'excavatrice / pelle", "Opérateur de chargeuse", "Opérateur de bulldozer",
+    "Opérateur de niveleuse", "Opérateur de dumper", "Opérateur de tombereau", "Conducteur d'engins",
+    "Chauffeur poids lourd", "Manœuvre", "Foreur", "Aide-foreur", "Chef foreur", "Boutefeu / Artificier",
+    "Aide-mineur", "Magasinier explosifs", "Responsable traitement / usine", "Métallurgiste",
+    "Ingénieur procédé", "Opérateur de concasseur", "Opérateur de broyeur", "Opérateur de laverie",
+    "Opérateur CIL / CIP", "Opérateur de flottation", "Responsable fonderie", "Fondeur",
+    "Responsable laboratoire", "Technicien de laboratoire", "Laborantin", "Responsable maintenance",
+    "Chef mécanicien", "Mécanicien chef d'équipe", "Mécanicien", "Mécanicien engins lourds",
+    "Mécanicien diesel", "Électricien", "Électricien haute tension", "Électromécanicien",
+    "Mécanicien électricité", "Soudeur", "Chaudronnier", "Hydraulicien", "Pneumaticien / Vulcanisateur",
+    "Graisseur", "Tourneur", "Technicien instrumentation", "Technicien groupe électrogène",
+    "Responsable HSE / SST", "Superviseur HSE", "Agent HSE", "Secouriste", "Infirmier",
+    "Médecin du travail", "Responsable environnement", "Technicien environnement",
+    "Responsable logistique", "Responsable approvisionnement", "Acheteur", "Gestionnaire de stock",
+    "Magasinier", "Agent de pesée / bascule", "Pompiste", "Chauffeur", "Chef de la sécurité",
+    "Agent de sécurité", "Gardien", "Cuisinier", "Aide-cuisinier", "Agent d'entretien", "Planton",
+    "Stagiaire"
+]
 SHIFTS = ["Standard", "3x8", "2x12", "Jour", "Nuit"]
 
 
