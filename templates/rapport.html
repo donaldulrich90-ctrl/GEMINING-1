@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Rapport de production — GOOD ENGINEERS OS{% endblock %}
 {% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <div class="ge-print-bar">
   <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,.04);padding:12px 14px;border-radius:10px;border:1px solid var(--ge-border);">
@@ -71,12 +72,95 @@
     {% endif %}
   </table>
 
+  {% if rows %}
+  <div class="ge-charts" style="margin-top:22px;">
+    <h2 style="font-size:15px;color:#0a5c3f;margin:0 0 4px;">📊 Graphiques — Haulage / Production</h2>
+    <p id="rapInsight" style="font-size:12.5px;color:#0a5c3f;margin:0 0 14px;font-weight:600;"></p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:#0d2b20;border:1px solid var(--ge-border,#15402f);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9fdcc2;margin-bottom:8px;">Production transportée par engin (t)</div>
+        <div style="position:relative;height:220px;"><canvas id="rapProd"></canvas></div>
+      </div>
+      <div style="background:#0d2b20;border:1px solid var(--ge-border,#15402f);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9fdcc2;margin-bottom:8px;">Voyages (cycles) par engin</div>
+        <div style="position:relative;height:220px;"><canvas id="rapCyc"></canvas></div>
+      </div>
+      <div style="background:#0d2b20;border:1px solid var(--ge-border,#15402f);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9fdcc2;margin-bottom:8px;">Rendement — tonnes/heure par engin</div>
+        <div style="position:relative;height:220px;"><canvas id="rapTph"></canvas></div>
+      </div>
+      <div style="background:#0d2b20;border:1px solid var(--ge-border,#15402f);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9fdcc2;margin-bottom:8px;">Efficacité carburant — L/t par engin (plus bas = mieux)</div>
+        <div style="position:relative;height:220px;"><canvas id="rapLpt"></canvas></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="ge-doc-sign">
     Fait à {{ ci.address|default:"________________" }}, le {{ today }}<br><br>
     {{ ci.signatory_title|default:"Le responsable" }}<br>
     <b>{{ ci.signatory_name|default:generated_by }}</b>
   </div>
 </div>
+
+{% if rows %}
+<script>
+(function(){
+  var rows = {{ rows_chart_json }};
+  if (!rows || !rows.length || typeof Chart === 'undefined') return;
+  var ids = rows.map(function(r){ return r.id; });
+  var cols = ['#F5B800','#28A745','#38BDF8','#FF6B00','#A78BFA','#EC4899','#14B8A6','#F97316'];
+  var barCols = ids.map(function(_,i){ return cols[i % cols.length]; });
+
+  // Lecture intelligente
+  var totProd = rows.reduce(function(s,r){ return s + (r.prod||0); },0);
+  var totCyc = rows.reduce(function(s,r){ return s + (r.cyc||0); },0);
+  var best = rows.slice().sort(function(a,b){ return b.prod - a.prod; })[0];
+  var withLpt = rows.filter(function(r){ return r.lpt > 0; });
+  var bestEff = withLpt.length ? withLpt.slice().sort(function(a,b){ return a.lpt - b.lpt; })[0] : null;
+  var ins = document.getElementById('rapInsight');
+  if (ins) {
+    ins.textContent = 'Total transporté : ' + totProd.toLocaleString('fr-FR') + ' t · ' + totCyc.toLocaleString('fr-FR') + ' voyages · '
+      + 'Meilleur engin : ' + (best ? best.id + ' (' + best.prod.toLocaleString('fr-FR') + ' t)' : '—')
+      + (bestEff ? ' · Plus économe : ' + bestEff.id + ' (' + bestEff.lpt + ' L/t)' : '');
+  }
+
+  var axis = function(opts){
+    opts = opts || {};
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, max: opts.max, ticks: { color: '#cfe9dc', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.08)' } },
+        x: { ticks: { color: '#cfe9dc', font: { size: 11 } }, grid: { display: false } }
+      }
+    };
+  };
+
+  new Chart(document.getElementById('rapProd'), {
+    type: 'bar',
+    data: { labels: ids, datasets: [{ data: rows.map(function(r){ return r.prod; }), backgroundColor: barCols, borderRadius: 4 }] },
+    options: axis()
+  });
+  new Chart(document.getElementById('rapCyc'), {
+    type: 'bar',
+    data: { labels: ids, datasets: [{ data: rows.map(function(r){ return r.cyc; }), backgroundColor: '#38BDF8', borderRadius: 4 }] },
+    options: axis()
+  });
+  new Chart(document.getElementById('rapTph'), {
+    type: 'bar',
+    data: { labels: ids, datasets: [{ data: rows.map(function(r){ return r.tph; }), backgroundColor: '#28A745', borderRadius: 4 }] },
+    options: axis()
+  });
+  new Chart(document.getElementById('rapLpt'), {
+    type: 'bar',
+    data: { labels: ids, datasets: [{ data: rows.map(function(r){ return r.lpt; }), backgroundColor: rows.map(function(r){ return r.lpt > 0 && bestEff && r.lpt <= bestEff.lpt * 1.15 ? '#28A745' : '#F5B800'; }), borderRadius: 4 }] },
+    options: axis()
+  });
+})();
+</script>
+{% endif %}
 
 {% if print %}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });</script>{% endif %}
 {% endblock %}
