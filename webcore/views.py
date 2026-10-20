@@ -661,8 +661,18 @@ def rapport_view(request):
 
     rows, tot = get_period_report(tid, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
     ci = load_company(tid)
+    chart_rows = [{
+        "id": r["machine_id"],
+        "prod": round(r["prod"], 1),
+        "fuel": round(r["fuel"], 1),
+        "cyc": int(r["cyc"]),
+        "tph": r["tph"],
+        "lpt": r["lpt"],
+        "h": round(r["h"], 1),
+    } for r in rows]
     ctx = {
         "rows": rows, "tot": tot, "ci": ci,
+        "rows_chart_json": mark_safe(json.dumps(chart_rows)),
         "start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"),
         "start_fr": start.strftime("%d/%m/%Y"), "end_fr": end.strftime("%d/%m/%Y"),
         "today": today.strftime("%d/%m/%Y"),
