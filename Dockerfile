@@ -31,4 +31,4 @@ VOLUME ["/data"]
 EXPOSE 8000
 
 # gunicorn sert l'application ; WhiteNoise sert les fichiers statiques.
-CMD ["sh", "-c", "gunicorn good_engineers_os.wsgi:application --bind 0.0.0.0:${PORT} --workers 3 --timeout 120 --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "(python manage.py recuperer_admin || true) && gunicorn good_engineers_os.wsgi:application --bind 0.0.0.0:${PORT} --workers 3 --timeout 120 --access-logfile - --error-logfile -"]
