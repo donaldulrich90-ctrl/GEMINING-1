@@ -334,7 +334,7 @@ def marche_or_view(request):
 # ---------------------------------------------------------------------------
 ROLES = ["Administrateur", "Ingenieur", "RH", "Invite", "Superviseur Production",
          "Superviseur Mecanicien", "Operateur"]
-PERM_TABS = [("dashboard", "Dashboard"), ("cycles", "Cycles"), ("carburant", "Carburant"),
+PERM_TABS = [("dashboard", "Dashboard"), ("cycles", "Cycles"), ("souterrain", "Exploitation souterraine"), ("carburant", "Carburant"),
              ("maintenance", "Maintenance"), ("stock", "Stock"), ("carte", "Carte"),
              ("finance", "Finance"), ("rh", "RH"), ("admin", "Admin"),
              ("donnees_ingenierie", "Ingénierie"), ("validation_operateur", "Validation"),
@@ -1616,11 +1616,76 @@ def st_file_view(request, cid):
     raise Http404("Justificatif introuvable")
 
 
+def souterrain_view(request):
+    """Exploitation souterraine : chantiers (stopes) + production par abattage."""
+    from core import exploitation_souterraine as ug
+    from datetime import date
+    tid = _tenant(request)
+    message = None
+    can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
+
+    if request.method == "POST" and can_edit:
+        action = request.POST.get("action")
+        who = request.ge_user.get("user", "Système")
+        if action == "chantier":
+            nom = (request.POST.get("nom") or "").strip()
+            if nom:
+                ug.add_chantier(tid, nom, (request.POST.get("niveau") or "").strip(),
+                                request.POST.get("methode", "Autre"),
+                                request.POST.get("statut", ug.STATUTS[0]),
+                                request.POST.get("tonnage_vise") or 0,
+                                (request.POST.get("note") or "").strip(), who)
+                message = f"Chantier « {nom} » enregistré."
+            else:
+                message = "Indiquez le nom du chantier."
+        elif action == "abattage":
+            cid = request.POST.get("chantier_id") or ""
+            cnom = ""
+            for c in ug.load_chantiers(tid):
+                if c.get("id") == cid:
+                    cnom = c.get("nom")
+                    break
+            tonnage = request.POST.get("tonnage") or 0
+            if cid and float(tonnage or 0) > 0:
+                ug.add_abattage(tid, request.POST.get("date") or date.today().isoformat(),
+                                cid, cnom, request.POST.get("methode", ""),
+                                tonnage, request.POST.get("teneur") or 0,
+                                request.POST.get("cycles") or 0, request.POST.get("tirs") or 0,
+                                (request.POST.get("note") or "").strip(), who)
+                message = f"Relevé d'abattage enregistré ({cnom})."
+            else:
+                message = "Choisissez un chantier et un tonnage valide."
+        elif action == "statut":
+            ug.update_chantier_statut(tid, request.POST.get("chantier_id") or "",
+                                      request.POST.get("statut", ""))
+            message = "Statut du chantier mis à jour."
+        elif action == "del_chantier":
+            ug.delete_chantier(tid, request.POST.get("chantier_id") or "")
+            message = "Chantier supprimé."
+        elif action == "del_abattage":
+            ug.delete_abattage(tid, request.POST.get("rec_id") or "")
+            message = "Relevé supprimé."
+
+    month = (request.GET.get("month") or date.today().strftime("%Y-%m"))
+    chantiers = ug.load_chantiers(tid)
+    abattage = ug.load_abattage(tid)
+    sums = ug.summary(tid, month)
+    ctx = {
+        "message": message, "can_edit": can_edit,
+        "methodes": ug.METHODES, "statuts": ug.STATUTS,
+        "chantiers": chantiers, "abattage": abattage[:80],
+        "sums": sums, "month": month, "today": date.today().isoformat(),
+        "nav_tabs": authorized_tabs(request.ge_user),
+    }
+    return render(request, "exploitation_souterraine.html", ctx)
+
+
 _VIEW_BY_SLUG = {
     "dashboard": dashboard_view,
     "planification": planification_view,
     "besoins": besoins_view,
     "cycles": cycles_view,
+    "souterrain": souterrain_view,
     "carburant": carburant_view,
     "maintenance": maintenance_view,
     "stock": stock_view,
