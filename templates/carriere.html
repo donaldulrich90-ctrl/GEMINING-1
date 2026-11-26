@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Carrière — GOOD ENGINEERS OS{% endblock %}
+{% block content %}
+<div class="dash-header">
+  <h1>🏔 Carrière — granulats</h1>
+  <p>Extraction (tirs, BCM) · concassage · stocks par granulométrie · pesée &amp; ventes · pilotage</p>
+</div>
+
+{% if message %}<div class="content-card" style="border-color:rgba(245,184,0,.4);">✅ {{ message }}</div>{% endif %}
+
+<form method="get" style="margin:0 0 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <label style="color:#9fb0c0;font-size:13px">Mois</label>
+  <input type="month" name="month" value="{{ month }}" onchange="this.form.submit()"
+         style="background:#0f1a24;border:1px solid #2a3a4a;border-radius:8px;padding:8px 10px;color:#e8eef4">
+</form>
+
+{% if sums.alertes %}
+<div class="content-card" style="border-color:rgba(224,108,108,.5)">
+  <h3 style="color:#e06c6c">⚠️ Alertes</h3>
+  <ul style="margin:0;padding-left:18px">{% for a in sums.alertes %}<li>{{ a }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="kpi-grid">
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⛏ Volume abattu</div><div class="kpi-val">{{ sums.totalBcm }}</div><div class="kpi-sub">BCM (m³ en place)</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">🧨 Facteur de poudre</div><div class="kpi-val">{{ sums.facteurPoudre }}</div><div class="kpi-sub">kg explosif / m³ · {{ sums.gasoilParBcm }} L gasoil/m³</div></div>
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">⚙️ Granulats produits</div><div class="kpi-val">{{ sums.totalProduitT }}</div><div class="kpi-sub">t · rendement {{ sums.rendementPct }} %</div></div>
+  <div class="dashboard-kpi kpi-border-accent"><div class="kpi-lab">🚚 Vendu</div><div class="kpi-val">{{ sums.totalVenduT }}</div><div class="kpi-sub">t · {{ sums.nbTickets }} tickets</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">💰 Chiffre d'affaires</div><div class="kpi-val">{{ sums.ca }}</div><div class="kpi-sub">FCFA</div></div>
+  <div class="dashboard-kpi kpi-border-muted"><div class="kpi-lab">📊 Écart prod − vente</div><div class="kpi-val">{{ sums.ecartProdVenteT }}</div><div class="kpi-sub">t (période) · marche {{ sums.tempsMarcheH }} h</div></div>
+</div>
+
+<div class="content-card">
+  <h3>📦 Stocks de granulats (cumul entrées − sorties)</h3>
+  {% if sums.stocks %}
+  <table class="ge-table">
+    <thead><tr><th>Granulométrie</th><th style="text-align:right">Entrées (t)</th><th style="text-align:right">Sorties (t)</th><th style="text-align:right">Stock (t)</th><th style="text-align:right">Seuil</th></tr></thead>
+    <tbody>
+    {% for s in sums.stocks %}
+      <tr{% if s.bas %} style="background:rgba(224,108,108,.12)"{% endif %}>
+        <td><strong>{{ s.granulo }}</strong></td>
+        <td style="text-align:right">{{ s.entrees }}</td>
+        <td style="text-align:right">{{ s.sorties }}</td>
+        <td style="text-align:right">{% if s.bas %}<span style="color:#e06c6c">⚠ {{ s.stock }}</span>{% else %}{{ s.stock }}{% endif %}</td>
+        <td style="text-align:right">{% if s.seuil %}{{ s.seuil }}{% else %}—{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p style="color:#7d8c9a">Aucun mouvement de stock.</p>{% endif %}
+</div>
+
+{% if can_edit %}
+<div class="actions-grid">
+  <div class="content-card">
+    <h3>⛏ Tir d'abattage (extraction)</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="production">
+      <label>Date</label><input type="date" name="date" value="{{ today }}">
+      <label>Front / gradin</label><input type="text" name="front" placeholder="Ex: Gradin 3 — front Est">
+      <label>Volume abattu (BCM, m³)</label><input type="number" step="any" min="0" name="volume_bcm" placeholder="0">
+      <label>Explosif (kg)</label><input type="number" step="any" min="0" name="explosif_kg" placeholder="0">
+      <label>Gasoil (L)</label><input type="number" step="any" min="0" name="gasoil_l" placeholder="0">
+      <label>Note</label><input type="text" name="note" placeholder="Maille, fragmentation…">
+      <button type="submit" class="btn-primary">Enregistrer le tir</button>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <h3>⚙️ Poste de concassage</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="concassage">
+      <label>Date</label><input type="date" name="date" value="{{ today }}">
+      <label>Tout-venant alimenté (t)</label><input type="number" step="any" min="0" name="tout_venant" placeholder="0">
+      <label>Temps de marche (h)</label><input type="number" step="any" min="0" name="temps_marche" placeholder="0">
+      <label style="margin-top:6px;color:#9fb0c0">Production par granulométrie (t)</label>
+      {% for g in granulos %}
+        <label>{{ g }}</label><input type="number" step="any" min="0" name="g_{{ forloop.counter0 }}" placeholder="0">
+      {% endfor %}
+      <label>Note</label><input type="text" name="note" placeholder="Remarque">
+      <button type="submit" class="btn-primary">Enregistrer le poste</button>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <h3>🚚 Pesée / vente (ticket bascule)</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="vente">
+      <label>Date</label><input type="date" name="date" value="{{ today }}">
+      <label>Client</label><input type="text" name="client" placeholder="Nom du client">
+      <label>Produit (granulométrie) *</label>
+      <select name="produit" required>
+        <option value="">— Choisir —</option>
+        {% for g in granulos %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+      </select>
+      <label>Poids brut (t)</label><input type="number" step="any" min="0" name="brut" placeholder="0">
+      <label>Tare (t)</label><input type="number" step="any" min="0" name="tare" placeholder="0">
+      <label>Prix unitaire (FCFA / t)</label><input type="number" step="any" min="0" name="prix_unitaire" placeholder="0">
+      <label>N° bon de livraison</label><input type="text" name="bl_numero" placeholder="BL-…">
+      <label>Note</label><input type="text" name="note" placeholder="Remarque">
+      <button type="submit" class="btn-primary">Enregistrer le ticket</button>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <h3>⚙️ Granulométries &amp; seuils de stock bas</h3>
+    <form method="post" class="ge-form">
+      {% csrf_token %}<input type="hidden" name="action" value="config">
+      <label>Granulométries (une par ligne)</label>
+      <textarea name="granulos" rows="6" style="background:#0f1a24;border:1px solid #2a3a4a;border-radius:8px;padding:8px 10px;color:#e8eef4">{% for g in granulos %}{{ g }}
+{% endfor %}</textarea>
+      <label style="margin-top:6px;color:#9fb0c0">Seuil d'alerte stock bas (t) — laisser vide pour aucun</label>
+      {% for s in seuils_list %}
+        <label>{{ s.granulo }}</label><input type="number" step="any" min="0" name="seuil_{{ forloop.counter0 }}" value="{% if s.seuil %}{{ s.seuil }}{% endif %}" placeholder="0">
+      {% endfor %}
+      <p style="color:#7d8c9a;font-size:12px">Les seuils correspondent aux granulométries actuelles. Enregistrez d'abord si vous changez la liste.</p>
+      <button type="submit" class="btn-primary">Enregistrer la configuration</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="content-card">
+  <h3>⛏ Tirs d'abattage ({{ production|length }})</h3>
+  {% if production %}
+  <div style="overflow-x:auto">
+  <table class="ge-table">
+    <thead><tr><th>Date</th><th>Front</th><th style="text-align:right">BCM</th><th style="text-align:right">Explosif (kg)</th><th style="text-align:right">Fact. poudre</th><th style="text-align:right">Gasoil (L)</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in production %}
+      <tr><td>{{ r.date }}</td><td>{{ r.front }}</td><td style="text-align:right">{{ r.volumeBcm }}</td><td style="text-align:right">{{ r.explosifKg }}</td><td style="text-align:right">{{ r.facteurPoudre }}</td><td style="text-align:right">{{ r.gasoilL }}</td>
+      {% if can_edit %}<td style="text-align:right"><form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="del_production"><input type="hidden" name="rec_id" value="{{ r.id }}"><button type="submit" style="background:none;border:none;color:#e06c6c;cursor:pointer">🗑</button></form></td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p style="color:#7d8c9a">Aucun tir enregistré.</p>{% endif %}
+</div>
+
+<div class="content-card">
+  <h3>⚙️ Postes de concassage ({{ concassage|length }})</h3>
+  {% if concassage %}
+  <div style="overflow-x:auto">
+  <table class="ge-table">
+    <thead><tr><th>Date</th><th style="text-align:right">Tout-venant (t)</th><th style="text-align:right">Produit (t)</th><th style="text-align:right">Rendement</th><th style="text-align:right">Marche (h)</th><th>Détail</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in concassage %}
+      <tr><td>{{ r.date }}</td><td style="text-align:right">{{ r.toutVenantT }}</td><td style="text-align:right">{{ r.totalProduitT }}</td><td style="text-align:right">{{ r.rendementPct }} %</td><td style="text-align:right">{{ r.tempsMarcheH }}</td>
+      <td style="font-size:12px;color:#9fb0c0">{% for g, t in r.parGranulo.items %}{{ g }}: {{ t }}t{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+      {% if can_edit %}<td style="text-align:right"><form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="del_concassage"><input type="hidden" name="rec_id" value="{{ r.id }}"><button type="submit" style="background:none;border:none;color:#e06c6c;cursor:pointer">🗑</button></form></td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p style="color:#7d8c9a">Aucun poste de concassage.</p>{% endif %}
+</div>
+
+<div class="content-card">
+  <h3>🚚 Pesées / ventes ({{ ventes|length }})</h3>
+  {% if ventes %}
+  <div style="overflow-x:auto">
+  <table class="ge-table">
+    <thead><tr><th>Date</th><th>N° BL</th><th>Client</th><th>Produit</th><th style="text-align:right">Net (t)</th><th style="text-align:right">PU</th><th style="text-align:right">Montant</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in ventes %}
+      <tr><td>{{ r.date }}</td><td>{{ r.blNumero }}</td><td>{{ r.client }}</td><td>{{ r.produit }}</td><td style="text-align:right">{{ r.netT }}</td><td style="text-align:right">{{ r.prixUnitaire }}</td><td style="text-align:right">{{ r.montant }}</td>
+      {% if can_edit %}<td style="text-align:right"><form method="post" style="display:inline" onsubmit="return confirm('Supprimer ?')">{% csrf_token %}<input type="hidden" name="action" value="del_vente"><input type="hidden" name="rec_id" value="{{ r.id }}"><button type="submit" style="background:none;border:none;color:#e06c6c;cursor:pointer">🗑</button></form></td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p style="color:#7d8c9a">Aucun ticket de pesée.</p>{% endif %}
+</div>
+{% endblock %}

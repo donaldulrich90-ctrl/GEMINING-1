@@ -334,7 +334,7 @@ def marche_or_view(request):
 # ---------------------------------------------------------------------------
 ROLES = ["Administrateur", "Ingenieur", "RH", "Invite", "Superviseur Production",
          "Superviseur Mecanicien", "Operateur"]
-PERM_TABS = [("dashboard", "Dashboard"), ("cycles", "Cycles"), ("souterrain", "Exploitation souterraine"), ("carburant", "Carburant"),
+PERM_TABS = [("dashboard", "Dashboard"), ("cycles", "Cycles"), ("souterrain", "Exploitation souterraine"), ("carriere", "Carrière"), ("carburant", "Carburant"),
              ("maintenance", "Maintenance"), ("stock", "Stock"), ("carte", "Carte"),
              ("finance", "Finance"), ("rh", "RH"), ("admin", "Admin"),
              ("donnees_ingenierie", "Ingénierie"), ("validation_operateur", "Validation"),
@@ -1680,12 +1680,85 @@ def souterrain_view(request):
     return render(request, "exploitation_souterraine.html", ctx)
 
 
+def carriere_view(request):
+    """Carrière : extraction → concassage → stocks granulats → pesée/ventes."""
+    from core import carriere as car
+    from datetime import date
+    tid = _tenant(request)
+    message = None
+    can_edit = request.ge_user.get("permissions", {}).get("can_modify_data", False) is not False
+
+    if request.method == "POST" and can_edit:
+        action = request.POST.get("action")
+        who = request.ge_user.get("user", "Système")
+        gl = car.granulos(tid)
+        if action == "production":
+            car.add_production(
+                tid, request.POST.get("date") or date.today().isoformat(),
+                (request.POST.get("front") or "").strip(),
+                request.POST.get("volume_bcm") or 0,
+                request.POST.get("explosif_kg") or 0,
+                request.POST.get("gasoil_l") or 0,
+                (request.POST.get("note") or "").strip(), who)
+            message = "Tir d'abattage enregistré."
+        elif action == "concassage":
+            par = {g: request.POST.get("g_" + str(i)) for i, g in enumerate(gl)}
+            car.add_concassage(
+                tid, request.POST.get("date") or date.today().isoformat(),
+                request.POST.get("tout_venant") or 0,
+                request.POST.get("temps_marche") or 0,
+                par, (request.POST.get("note") or "").strip(), who)
+            message = "Poste de concassage enregistré."
+        elif action == "vente":
+            produit = request.POST.get("produit") or ""
+            car.add_vente(
+                tid, request.POST.get("date") or date.today().isoformat(),
+                (request.POST.get("client") or "").strip(), produit,
+                request.POST.get("tare") or 0, request.POST.get("brut") or 0,
+                request.POST.get("prix_unitaire") or 0,
+                (request.POST.get("bl_numero") or "").strip(),
+                (request.POST.get("note") or "").strip(), who)
+            message = "Ticket de pesée / vente enregistré."
+        elif action == "config":
+            gnew = [g.strip() for g in (request.POST.get("granulos") or "").splitlines() if g.strip()]
+            seuils = {}
+            for i, g in enumerate(gnew):
+                seuils[g] = request.POST.get("seuil_" + str(i)) or 0
+            car.save_config(tid, granulos=gnew, seuils=seuils)
+            message = "Granulométries et seuils mis à jour."
+        elif action == "del_production":
+            car.delete_production(tid, request.POST.get("rec_id") or "")
+            message = "Tir supprimé."
+        elif action == "del_concassage":
+            car.delete_concassage(tid, request.POST.get("rec_id") or "")
+            message = "Poste de concassage supprimé."
+        elif action == "del_vente":
+            car.delete_vente(tid, request.POST.get("rec_id") or "")
+            message = "Ticket supprimé."
+
+    month = (request.GET.get("month") or date.today().strftime("%Y-%m"))
+    cfg = car.load_config(tid)
+    sums = car.summary(tid, month)
+    seuils_list = [{"granulo": g, "seuil": cfg.get("seuils", {}).get(g, 0)} for g in cfg["granulos"]]
+    ctx = {
+        "message": message, "can_edit": can_edit,
+        "granulos": cfg["granulos"], "seuils_list": seuils_list,
+        "production": car.load_production(tid)[:60],
+        "concassage": car.load_concassage(tid)[:60],
+        "ventes": car.load_ventes(tid)[:80],
+        "sums": sums, "month": month, "today": date.today().isoformat(),
+        "nav_tabs": authorized_tabs(request.ge_user),
+    }
+    return render(request, "carriere.html", ctx)
+
+
 _VIEW_BY_SLUG = {
     "dashboard": dashboard_view,
     "planification": planification_view,
     "besoins": besoins_view,
     "cycles": cycles_view,
     "souterrain": souterrain_view,
+    "carriere": carriere_view,
     "carburant": carburant_view,
     "maintenance": maintenance_view,
     "stock": stock_view,

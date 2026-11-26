@@ -13,6 +13,7 @@ TABS = [
     ("EXPRESSION DE BESOIN", "📝 BESOINS",     "dashboard",            "besoins"),
     ("CYCLES",               "🔄 CYCLES",      "cycles",               "cycles"),
     ("EXPLOITATION SOUT.",   "⛏ SOUTERRAIN",  "cycles",               "souterrain"),
+    ("CARRIÈRE",             "🏔 CARRIÈRE",    "cycles",               "carriere"),
     ("CARBURANT",            "⛽ CARBURANT",   "carburant",            "carburant"),
     ("MAINT.",               "🔧 MAINT.",      "maintenance",          "maintenance"),
     ("GESTION STOCK",        "📦 STOCK",       "stock",                "stock"),
