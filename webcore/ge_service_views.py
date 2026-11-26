@@ -299,13 +299,19 @@ def create_enterprise(request):
     tid = (storage.safe_tenant_id(tenant) if tenant
            else storage.safe_tenant_id(storage.slugify_tenant_name(name)))
     plan = body.get("plan") or "standard"
+    # Type de mine piloté par le portail (cloisonnement des onglets).
+    from core.permissions import normalize_mine_type
+    type_mine = normalize_mine_type(body.get("type_mine"))
 
     if _tenant_existe(tid):
-        return JsonResponse({"ok": True, "existing": True, "tenant": tid})
-    cree = storage.create_tenant(name, tid=tid, plan=plan)
+        # Tenant déjà présent : on synchronise le type si fourni.
+        if type_mine:
+            storage.update_tenant(tid, {"type_mine": type_mine})
+        return JsonResponse({"ok": True, "existing": True, "tenant": tid, "type_mine": type_mine})
+    cree = storage.create_tenant(name, tid=tid, plan=plan, type_mine=type_mine)
     if not cree:
         return JsonResponse({"error": f"Création tenant impossible ({tid})"}, status=500)
-    return JsonResponse({"ok": True, "created": True, "tenant": cree})
+    return JsonResponse({"ok": True, "created": True, "tenant": cree, "type_mine": type_mine})
 
 
 @csrf_exempt
