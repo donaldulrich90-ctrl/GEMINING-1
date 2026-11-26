@@ -15,7 +15,9 @@ def navigation(request):
     user = getattr(request, "ge_user", None)
     if not user:
         return {}
-    tabs = authorized_tabs(user)
+    _tid = getattr(request, "ge_tenant", "default")
+    _mine = storage.tenant_mine_type(_tid if _tid != "__platform__" else "default")
+    tabs = authorized_tabs(user, _mine)
     current_slug = request.resolver_match.kwargs.get("slug") if request.resolver_match else None
     if request.resolver_match and request.resolver_match.url_name == "dashboard":
         current_slug = "dashboard"

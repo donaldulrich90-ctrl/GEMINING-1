@@ -34,16 +34,52 @@ TAB_BY_KEY = {t[0]: {"key": t[0], "label": t[1], "perm": t[2], "slug": t[3]} for
 TAB_BY_SLUG = {t[3]: TAB_BY_KEY[t[0]] for t in TABS}
 
 
-def authorized_tabs(user: dict):
-    """Liste ordonnée des onglets visibles pour ce compte."""
+# ---------------------------------------------------------------------------
+# Type de mine — environnements cloisonnés par entreprise
+# ---------------------------------------------------------------------------
+# Chaque entreprise a un type de mine. Les onglets métier ci-dessous ne sont
+# visibles que pour le type correspondant ; les autres onglets sont communs.
+# Une entreprise « ciel ouvert » ne verra jamais le souterrain ni la carrière,
+# et réciproquement.
+MINE_TYPES = ("ciel_ouvert", "souterrain", "carriere")
+MINE_TYPE_LABELS = {
+    "ciel_ouvert": "Mine à ciel ouvert",
+    "souterrain": "Mine souterraine",
+    "carriere": "Carrière",
+}
+# slug d'onglet -> type de mine qui seul y a droit.
+TYPE_SPECIFIC_SLUGS = {
+    "cycles": "ciel_ouvert",     # cycles de production fosse (ciel ouvert)
+    "souterrain": "souterrain",  # exploitation souterraine
+    "carriere": "carriere",      # carrière de granulats
+}
+
+
+def normalize_mine_type(t):
+    """Renvoie un type de mine valide, ou '' si inconnu / non typé."""
+    t = (t or "").strip()
+    return t if t in MINE_TYPES else ""
+
+
+def authorized_tabs(user: dict, mine_type=None):
+    """Liste ordonnée des onglets visibles pour ce compte.
+
+    mine_type : type de mine de l'entreprise. Si fourni, les onglets réservés
+    à un autre type sont masqués (cloisonnement des environnements). Si vide /
+    non typé, aucun filtrage par type (rétro-compatibilité).
+    """
     role = (user or {}).get("role", "Invite")
     perms = (user or {}).get("permissions", {}) or {}
 
     if role == "Operateur":
         return [TAB_BY_KEY["VALIDATION OPÉRATEUR"]]
 
+    mt = normalize_mine_type(mine_type)
     result = []
     for key, label, perm, slug in TABS:
+        req_type = TYPE_SPECIFIC_SLUGS.get(slug)
+        if req_type and mt and req_type != mt:
+            continue  # onglet d'un autre type de mine -> masqué
         if key == "MARCHÉ OR":
             result.append(TAB_BY_KEY[key])          # toujours visible (hors opérateur)
         elif perm and perms.get(perm):
@@ -53,8 +89,8 @@ def authorized_tabs(user: dict):
     return result
 
 
-def can_access(user: dict, slug: str) -> bool:
+def can_access(user: dict, slug: str, mine_type=None) -> bool:
     tab = TAB_BY_SLUG.get(slug)
     if not tab:
         return False
-    return any(t["slug"] == slug for t in authorized_tabs(user))
+    return any(t["slug"] == slug for t in authorized_tabs(user, mine_type))
