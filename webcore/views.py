@@ -8,7 +8,8 @@ from django.utils.safestring import mark_safe
 
 from core.auth import get_user_manager
 from core.fleet import FleetManager, statut_count, col_sum_int, col_mean
-from core.permissions import TAB_BY_SLUG, authorized_tabs, can_access
+from core.permissions import (TAB_BY_SLUG, authorized_tabs, can_access,
+                               MINE_TYPE_LABELS, normalize_mine_type)
 from core import storage
 
 
@@ -130,6 +131,11 @@ def dashboard_view(request):
 
 def _tenant(request):
     return request.ge_tenant if request.ge_tenant != "__platform__" else "default"
+
+
+def _mine_type(request):
+    """Type de mine de l'entreprise courante (pour le cloisonnement des onglets)."""
+    return storage.tenant_mine_type(_tenant(request))
 
 
 # ---------------------------------------------------------------------------
@@ -993,14 +999,18 @@ def console_view(request):
             name = (request.POST.get("name") or "").strip()
             adm_u = (request.POST.get("admin_user") or "").strip()
             adm_p = (request.POST.get("admin_pass") or "").strip()
+            type_mine = normalize_mine_type(request.POST.get("type_mine"))
             if not name or not adm_u or not adm_p:
                 message = "Nom d'entreprise, identifiant et mot de passe admin requis."
+            elif not type_mine:
+                message = "Le type de mine (ciel ouvert, souterraine ou carrière) est obligatoire."
             elif um.get_user(adm_u):
                 message = "Cet identifiant admin existe déjà."
             else:
                 tid = storage.create_tenant(name, request.POST.get("tid") or None,
                                             request.POST.get("plan", "standard"),
                                             request.POST.get("subscription_end", ""),
+                                            type_mine=type_mine,
                                             address=request.POST.get("address", ""),
                                             phone=request.POST.get("phone", ""),
                                             email=request.POST.get("email", ""),
@@ -1018,12 +1028,16 @@ def console_view(request):
             storage.set_tenant_active(t, not reg.get(t, {}).get("active", True))
             message = f"Statut de « {t} » modifié."
         elif action == "update":
-            storage.update_tenant(request.POST.get("tid"), {
+            _upd = {
                 "name": request.POST.get("name"), "plan": request.POST.get("plan"),
                 "subscription_end": request.POST.get("subscription_end"),
                 "email": request.POST.get("email"), "phone": request.POST.get("phone"),
                 "rccm": request.POST.get("rccm"), "tax_id": request.POST.get("tax_id"),
-            })
+            }
+            _tm = normalize_mine_type(request.POST.get("type_mine"))
+            if _tm:
+                _upd["type_mine"] = _tm
+            storage.update_tenant(request.POST.get("tid"), _upd)
             message = "Fiche entreprise mise à jour."
         elif action == "delete":
             if (request.POST.get("confirm") or "").strip() == request.POST.get("tid"):
@@ -1043,13 +1057,17 @@ def console_view(request):
     for tid, meta in reg.items():
         if tid == "__platform__":
             continue
+        _tm = normalize_mine_type(meta.get("type_mine"))
         tenants.append({"id": tid, "name": meta.get("name", ""), "plan": meta.get("plan", ""),
                         "end": meta.get("subscription_end", "") or "—", "active": meta.get("active", True),
                         "rccm": meta.get("rccm", "") or "—", "email": meta.get("email", "") or meta.get("phone", "") or "—",
+                        "type_mine": _tm, "type_label": MINE_TYPE_LABELS.get(_tm, "⚠ Non typé"),
                         "users": counts.get(tid, 0)})
+    mine_type_choices = [{"value": k, "label": v} for k, v in MINE_TYPE_LABELS.items()]
     ctx = {"message": message, "me": request.ge_user.get("user"), "tenants": tenants,
            "editable": [t for t in tenants if t["id"] != "default"],
            "deletable": [t for t in tenants if t["id"] != "default"],
+           "mine_type_choices": mine_type_choices,
            "today": date.today().isoformat(), "year_end": date.today().replace(month=12, day=31).isoformat()}
     return render(request, "console.html", ctx)
 
@@ -1675,7 +1693,7 @@ def souterrain_view(request):
         "methodes": ug.METHODES, "statuts": ug.STATUTS,
         "chantiers": chantiers, "abattage": abattage[:80],
         "sums": sums, "month": month, "today": date.today().isoformat(),
-        "nav_tabs": authorized_tabs(request.ge_user),
+        "nav_tabs": authorized_tabs(request.ge_user, _mine_type(request)),
     }
     return render(request, "exploitation_souterraine.html", ctx)
 
@@ -1747,7 +1765,7 @@ def carriere_view(request):
         "concassage": car.load_concassage(tid)[:60],
         "ventes": car.load_ventes(tid)[:80],
         "sums": sums, "month": month, "today": date.today().isoformat(),
-        "nav_tabs": authorized_tabs(request.ge_user),
+        "nav_tabs": authorized_tabs(request.ge_user, _mine_type(request)),
     }
     return render(request, "carriere.html", ctx)
 
@@ -1778,7 +1796,7 @@ _VIEW_BY_SLUG = {
 def tab_view(request, slug):
     user = request.ge_user
     tab = TAB_BY_SLUG.get(slug)
-    if not tab or not can_access(user, slug):
+    if not tab or not can_access(user, slug, _mine_type(request)):
         return _forbidden(request, slug)
     view = _VIEW_BY_SLUG.get(slug)
     if view:
@@ -1788,5 +1806,5 @@ def tab_view(request, slug):
 
 def _forbidden(request, slug):
     user = getattr(request, "ge_user", None)
-    tabs = authorized_tabs(user) if user else []
+    tabs = authorized_tabs(user, _mine_type(request)) if user else []
     return render(request, "forbidden.html", {"slug": slug, "nav_tabs": tabs}, status=403)

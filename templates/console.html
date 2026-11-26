@@ -29,11 +29,13 @@
       <h3>🏢 Entreprises &amp; abonnements</h3>
       <div style="overflow-x:auto;">
         <table class="ge-table">
-          <thead><tr><th>Identifiant</th><th>Nom</th><th>Plan</th><th>Fin abonnement</th><th>RCCM</th><th>Contact</th><th>Comptes</th><th>Statut</th></tr></thead>
+          <thead><tr><th>Identifiant</th><th>Nom</th><th>Type de mine</th><th>Plan</th><th>Fin abonnement</th><th>RCCM</th><th>Contact</th><th>Comptes</th><th>Statut</th></tr></thead>
           <tbody>
             {% for t in tenants %}
             <tr>
-              <td><strong>{{ t.id }}</strong></td><td>{{ t.name }}</td><td>{{ t.plan }}</td><td>{{ t.end }}</td>
+              <td><strong>{{ t.id }}</strong></td><td>{{ t.name }}</td>
+              <td>{% if t.type_mine %}{{ t.type_label }}{% else %}<span style="color:#e06c6c">⚠ Non typé</span>{% endif %}</td>
+              <td>{{ t.plan }}</td><td>{{ t.end }}</td>
               <td>{{ t.rccm }}</td><td>{{ t.email }}</td><td>{{ t.users }}</td>
               <td>{% if t.active %}<span class="badge badge-active">Active</span>{% else %}<span class="badge badge-panne">Suspendue</span>{% endif %}</td>
             </tr>
@@ -51,6 +53,12 @@
           <div><label>Nom de l'entreprise</label><input type="text" name="name" required></div>
           <div><label>Identifiant (vide = auto)</label><input type="text" name="tid" placeholder="ex. vital-mining"></div>
           <div><label>Plan</label><select name="plan"><option>free</option><option selected>standard</option><option>premium</option></select></div>
+        </div>
+        <div><label>Type de mine <span style="color:#e06c6c">*</span> (détermine les onglets visibles)</label>
+          <select name="type_mine" required>
+            <option value="">— Choisir le type —</option>
+            {% for c in mine_type_choices %}<option value="{{ c.value }}">{{ c.label }}</option>{% endfor %}
+          </select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
           <div><label>Fin d'abonnement</label><input type="date" name="subscription_end" value="{{ year_end }}"></div>
@@ -79,6 +87,11 @@
           {% csrf_token %}<input type="hidden" name="action" value="update">
           <label>Entreprise</label><select name="tid">{% for t in editable %}<option value="{{ t.id }}">{{ t.id }} — {{ t.name }}</option>{% endfor %}</select>
           <label>Nouveau nom</label><input type="text" name="name">
+          <label>Type de mine (laisser « — » pour ne pas changer)</label>
+          <select name="type_mine">
+            <option value="">—</option>
+            {% for c in mine_type_choices %}<option value="{{ c.value }}">{{ c.label }}</option>{% endfor %}
+          </select>
           <div style="display:flex;gap:8px;">
             <div style="flex:1;"><label>Plan</label><select name="plan"><option value="">—</option><option>free</option><option>standard</option><option>premium</option></select></div>
             <div style="flex:1;"><label>Fin abonnement</label><input type="date" name="subscription_end"></div>

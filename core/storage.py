@@ -168,6 +168,12 @@ def tenant_name(tenant_id: str) -> str:
     return rec.get("name") or safe_tenant_id(tenant_id)
 
 
+def tenant_mine_type(tenant_id: str) -> str:
+    """Type de mine de l'entreprise : ciel_ouvert | souterrain | carriere | ''."""
+    from .permissions import normalize_mine_type
+    return normalize_mine_type(get_tenant_record(tenant_id).get("type_mine"))
+
+
 def save_tenants_registry(tenants: dict) -> None:
     db = get_database()
     db["tenants"] = tenants
@@ -205,8 +211,10 @@ def create_tenant(name, tid=None, plan="standard", subscription_end="", **extra)
     reg = get_tenants_registry().copy()
     if tid == "default" or tid in reg:
         return ""
+    from .permissions import normalize_mine_type
     reg[tid] = {"name": (name or "").strip(), "plan": plan,
                 "subscription_end": subscription_end or "", "active": True,
+                "type_mine": normalize_mine_type(extra.get("type_mine")),
                 "address": extra.get("address", ""), "phone": extra.get("phone", ""),
                 "email": extra.get("email", ""), "tax_id": extra.get("tax_id", ""),
                 "rccm": extra.get("rccm", ""), "bank_info": extra.get("bank_info", "")}
